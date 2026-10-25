@@ -302,6 +302,14 @@ class Sound {
     this.noise(0.05, { gain: 0.03, filter: "highpass", freq: 4000 });
   }
 
+  // "Start Building": a rising whoosh over a punchy thump, then two notes climbing.
+  start() {
+    this.noise(0.28, { gain: 0.12, filter: "bandpass", freq: 400, endFreq: 2400, q: 0.9, attack: 0.12 });
+    this.tone(140, 0.18, { gain: 0.22, endFreq: 70 });
+    this.tone(523, 0.12, { type: "triangle", gain: 0.14, delay: 0.1 });
+    this.tone(784, 0.3, { type: "triangle", gain: 0.15, delay: 0.18 });
+  }
+
   // "See Results": a quick rising arpeggio, then a sparkle.
   reveal() {
     [523, 659, 784, 1047].forEach((freq, i) => this.tone(freq, 0.3, { type: "triangle", gain: 0.12, delay: i * 0.06 }));

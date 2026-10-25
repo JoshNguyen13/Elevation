@@ -13,8 +13,9 @@ Newest first. One entry per session or PR: date · who · branch · what changed
 - Changed:
   - Earthquake: removed the `tremor` crackles. During an earthquake test, impacts below strength 0.35 (`QUAKE_IMPACT_MIN` in `sounds.ts`) are silent, because the pieces' constant knocking sounded like clicking over the rumble. Meteor hits, harder impacts and `fallen` still play.
   - UI sounds in `audio.ts`: `click()` (a soft tick, on the tutorial's Skip), `confirm()` (a two-step pop, on the tutorial's main button) and `reveal()` (a rising arpeggio and sparkle, on "See Results →"). Wired in `TutorialScreen.tsx` and `BuildPhase.tsx` (integrator files).
-- Audition: `button-click`, `button-confirm`, `results-button`.
-- Open: if light quake rattles still come through, raise `QUAKE_IMPACT_MIN`. The intro's "See Today's Results →" (already played) has no sound yet.
+- Audition: `button-click`, `button-confirm`, `results-button`, `start-button`.
+- Later: `start()` (a rising whoosh, a thump and two climbing notes) on the intro's "Start Building →". When the same button reads "See Today's Results →" (already played), it plays `reveal()`. Wired in `IntroScreen.tsx`.
+- Open: if light quake rattles still come through, raise `QUAKE_IMPACT_MIN`.
 
 ## 2026-10-25 · Preston · sound/disaster-audio (polish)
 - Changed:

@@ -4,6 +4,7 @@ import { getMaterial } from "@/data/materials";
 import { dayNumber } from "@/lib/daily/date";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
 import { glyph } from "@/lib/game/icon";
+import { sound } from "@/lib/juice";
 import { colors } from "@/lib/theme";
 import PieceSvg from "./PieceSvg";
 import styles from "./IntroScreen.module.css";
@@ -56,7 +57,15 @@ export default function IntroScreen({
           })}
         </div>
         <div className={styles.actions}>
-          <Button onClick={onStart}>{alreadyPlayed ? "See Today's Results →" : "Start Building →"}</Button>
+          <Button
+            onClick={() => {
+              if (alreadyPlayed) sound.reveal();
+              else sound.start();
+              onStart();
+            }}
+          >
+            {alreadyPlayed ? "See Today's Results →" : "Start Building →"}
+          </Button>
           <button type="button" className={styles.howTo} onClick={onHowToPlay}>
             How to Play
           </button>

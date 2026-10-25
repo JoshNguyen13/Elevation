@@ -97,6 +97,7 @@ const PREVIEWS: Record<string, (strength: number) => JuiceEvent | void> = {
   "button-click": () => sound.click(),
   "button-confirm": () => sound.confirm(),
   "results-button": () => sound.reveal(),
+  "start-button": () => sound.start(),
   // The test starting with a disaster: the whoosh, then that disaster's loop.
   "ambience-wind": () => ({ kind: "phase", phase: "testing", disaster: "wind" }),
   "ambience-earthquake": () => ({ kind: "phase", phase: "testing", disaster: "earthquake" }),
