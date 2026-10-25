@@ -13,15 +13,21 @@
 
 **Elevation** is a 2D, browser-based daily puzzle game. Every player gets the same 10 pieces and two minutes to stack them as high and stable as they can, then the tower is hit by that day's natural disaster. Score = height + survival time, shown as a percentile against everyone who played today (Wordle × Tricky Towers × Krillion results).
 
-**Current phase: Phase 1 — Static placement. ✅ Complete.**
-**Next: Phase 2 — Core physics.** Matter.js body per placed piece, the freeze-on-placement rule (§4.3), friction-only materials, and pickup/reposition with real collisions (§4.4). Read "Phase 1 placement rules" in §4 first.
+**Current phase: Phase 2 — Core physics. ✅ Complete.**
+**Next: Phase 3 — Build → Test transition.** That covers:
+- the live 2-minute build timer;
+- at 0: unfreeze everything (§4.6) and lock the structure;
+- the `SETTLE_DURATION_S` window;
+- height measurement and banding (§5.1).
+
+Then split into the four tracks. Read "Build-phase rules" in §4 first.
 
 ### Roadmap (§10.2)
 | Phase | What | Who |
 |---|---|---|
 | **0 — Setup** ✅ | Repo scaffold, Next.js shell, Matter.js canvas with a static platform, this file | Single computer |
 | **1 — Static placement** ✅ | Drag tray → canvas, rotate Q/E, no gravity. Validates the interaction feel | Single computer |
-| 2 — Core physics | Matter.js body per shape, freeze-on-placement rule (§4.3), friction-only materials, pickup/reposition (§4.4) | Single computer |
+| **2 — Core physics** ✅ | Matter.js body per shape, freeze-on-placement rule (§4.3), friction-only materials, pickup/reposition (§4.4) | Single computer |
 | 3 — Build → Test transition | 2-min build timer, structure lock, settling window, height measurement + banding (§5.1) | Single computer, **then split into 4 tracks** |
 | 4 — Disasters | One disaster end to end first (wind), escalation + stability score, then the others | Track A |
 | 5 — Daily system + leaderboard | Supabase schema, device ID + display name, date seed → materials + disaster, percentile query | Track C |
@@ -116,7 +122,10 @@ All constants live in **`src/lib/physics/constants.ts`**. Change them there and 
 | `PX_PER_METER` | 40 | TBD (§4.2). Chosen so the Figma pieces (~50–86px) are ~1.5–2m |
 | Canvas | 10m × 14m (400 × 560 px) | Matches the Figma Build Area height |
 | Platform | 5.5m × 0.5m (220 × 20 px), corner radius 6px, 0.5m from the bottom | TBD (§4.2). Matches Figma |
-| `GRAVITY_Y` | 1 (Matter.js default) | |
+| `GRAVITY_Y` | 1 (Matter.js default) | TBD. At 40 px/m this is ≈1000 px/s² ≈ 25 m/s² (~2.5 g). It feels snappy. Tune by playtesting |
+| `PHYSICS_STEP_MS` | 1000/60 | Fixed step. `BuildSession.step()` catches up on real time, capped at `MAX_FRAME_MS` (100) |
+| `POSITION_ITERATIONS` / `VELOCITY_ITERATIONS` | 10 / 8 | TBD. Above Matter's 6 / 4 so stacks jitter less |
+| Per-material mass | `Body.setMass(material.mass)` | Relative units (2 / 1 / 3.5). Inertia scales with it |
 | `RESTITUTION` | 0 | **Locked** (§3.2) |
 | `BUILD_DURATION_S` | 120 | §2.1 |
 | `SETTLE_DURATION_S` | 1.5 | TBD (§4.6) |
@@ -131,9 +140,10 @@ All constants live in **`src/lib/physics/constants.ts`**. Change them there and 
 - **Convert to pixels once, when the Matter body is created** (`toPx()`), and simulate in pixel space. Convert back with `toMeters()` for anything shown to the player or used in scoring (e.g. height).
 This keeps the "meters internally, screen-proportionate" intent of §4.2 without fighting the engine.
 
-**Rules later phases must implement (summarized; full text in the doc):**
-- **Freeze on placement (§4.3).** The most recently placed piece is *static* (weightless but collidable). Placing the next piece makes the previous one dynamic and freezes the new one. This is what lets `/\` leaning pairs work.
-- **Pickup (§4.4).** A placed piece can be picked back up. Remove it from collision (sensor or temporarily remove it). Anything leaning on it falls naturally. When re-placed, it re-enters the freeze rule as if new.
+**Physics rules (summarized; full text in the doc). ✅ = implemented:**
+- ✅ **Freeze on placement (§4.3).** The most recently placed piece is *static* (weightless but collidable). Placing the next piece makes the previous one dynamic and freezes the new one. This is what lets `/\` leaning pairs work. (We tried an uncollidable frozen piece on 2026-10-24 and reverted it. Pieces that came to rest inside it stayed overlapping once it unfroze.)
+- ✅ **Pickup (§4.4).** A placed piece can be picked back up, and its body is removed from the world. Anything leaning on it falls naturally. When re-placed, it re-enters the freeze rule as if new.
+- ✅ **Friction-only materials (§3.2, §4.9).** Each body gets `material.friction`, restitution 0 and `setMass(material.mass)`. Matter uses the **lower** friction of two touching bodies, and static bodies (platform, frozen piece) are forced to friction 1, so a contact always uses the material's own friction.
 - **Build forgiveness (§4.5).** A collapse during build doesn't end the run. Only the state at timer = 0 counts.
 - **Transition (§4.6).** At timer = 0, unfreeze *everything*, wait `SETTLE_DURATION_S` (no disaster force), then measure the official height.
 - **Collapsed (§4.7, TBD).** Track each piece's peak height. A piece counts as fallen when its lowest point touches the ground after having been more than ~1 piece-height up.
@@ -144,18 +154,29 @@ This keeps the "meters internally, screen-proportionate" intent of §4.2 without
 ### Controls (§2.2, desktop first)
 Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, **E** clockwise (while holding or just after placing) · release places the piece. All 10 pieces are visible in the tray at once, and the player picks the order. Pieces can go anywhere on the canvas. Mobile controls are TBD.
 
-### Phase 1 placement rules (as built; `src/lib/game/buildState.ts`)
-- **Coordinates.** A piece's position is its **centroid in board pixels** (`x`, `y`, origin top-left, y down) plus `angle` in **radians, clockwise**. This matches Matter.js, so Phase 2 can hand the values straight to bodies.
-- **Outlines.** `shapeOutline()` in `geometry.ts` is the single source of piece geometry: regular polygons have their **first vertex pointing up** (as in Figma), and circles are drawn as 24-gons. **Phase 2: build bodies from these vertices** (`Bodies.fromVertices`), **not** `Bodies.polygon`. Matter's polygon starts at a different angle, so the hitbox would not match the drawing.
-- **Picking up.** Press on an available tray slot, or on any placed piece. Topmost/newest wins, and the piece keeps its grab offset so it doesn't jump.
-- **Rotating.** Q/E rotate the held piece freely. With nothing held, they rotate the **newest placed piece**, but only if the result stays on the board and doesn't overlap anything.
+### Build-phase rules (as built; `src/lib/game/buildSession.ts`)
+- **Who owns what.**
+  - `BuildSession` (a plain class) owns the rules: tray / held / placed status, which piece is frozen, and placement order.
+  - `PhysicsWorld` (`src/lib/physics/world.ts`) owns the Matter bodies. A **placed piece's position lives only in its body**.
+  - React subscribes to the session with `useSyncExternalStore` (tray, HUD, drag ghost).
+  - `BoardCanvas` runs the loop: `session.step(elapsed)` then `drawBoard(session.drawables())` every animation frame.
+  - In dev, `window.__elevation.debugPieces()` lists every piece's status, frozen flag and pose.
+- **Coordinates.** A pose is the **centroid in board pixels** (origin top-left, y down) plus `angle` in **radians, clockwise**, the same as Matter.
+- **Outlines.** `shapeOutline()` in `geometry.ts` is the single source of piece geometry. Regular polygons have their **first vertex pointing up** (as in Figma), and circles are 24-gons for drawing. Bodies are built from these vertices (`Bodies.fromVertices`), so the hitbox is exactly what's drawn.
+- **Freezing.** The body is created dynamic, given its mass, then `setStatic(true)`. Matter saves mass and friction on freeze and restores them on unfreeze, so the order matters. Unfreezing zeroes the body's velocity.
+- **Picking up.**
+  - Press on an available tray slot, or on any placed piece. The frozen piece wins, then newest first.
+  - The piece keeps its grab offset so it doesn't jump.
+  - Picking up the frozen piece leaves **no** frozen piece: the one before it is already dynamic.
+- **Rotating.** Q/E rotate the held piece freely. With nothing held, they rotate the **frozen piece**, but only if the result stays on the board and doesn't overlap anything.
 - **Dropping.**
-  - Release over the board → the piece is clamped fully inside the board, then placed if it doesn't overlap the platform or another piece. If it does overlap, it goes back where it came from.
+  - Release over the board → the piece is clamped fully inside the board, then placed (frozen) if it doesn't overlap the platform or any body. If it does overlap, it goes back where it came from.
   - Release off the board → the piece goes back to the tray.
-  - **Esc** cancels the drag.
+  - **Esc** puts it back where it was, or into the tray if fallen pieces now fill that spot.
   - "Touching" is allowed (SAT overlap with a 0.5px tolerance), so pieces can sit flush.
-- **Newest piece** is drawn in the accent blue, as in Figma. It's the piece §4.3 will keep frozen, and the Q/E target after placing.
-- **No-overlap rule.** This is a Phase 1 decision, not in the spec. Without it, Matter would violently push overlapping bodies apart when Phase 2 adds physics. Revisit in Phase 2 (see §8).
+- **No-overlap drop rule.** Not in the spec. It stops Matter from violently pushing overlapping bodies apart. Kept for Phase 2, still open in §8.
+- **Fallen pieces.** A dynamic piece that leaves the board entirely (below the bottom, or past either side; there are no walls) is removed and **returned to the tray**. This is a placeholder for §4.8 despawn and §4.5 forgiveness, still open in §8.
+- **Newest piece** is drawn in the accent blue, as in Figma. It's the frozen piece, and the Q/E target after placing.
 - **Daily set.** Placeholder `square, triangle, pentagon, …` (10 pieces, mirrors the Figma tray) until the Phase 5 seed exists.
 - **Rendering.** Custom canvas draw (`src/lib/game/draw.ts`), not `Matter.Render`. The held piece is drawn on the canvas when the pointer is over the board, and as a fixed-position SVG ghost when it's off the board.
 
@@ -212,8 +233,8 @@ Elevation/
     │   └── page.module.css
     ├── components/
     │   └── game/                        ← each .tsx has a sibling .module.css
-    │       ├── BuildPhase.tsx           ← 02 — Build Phase screen: state, pointer + Q/E/Esc input, layout
-    │       ├── BoardCanvas.tsx          ← the 400×560 board canvas (HiDPI); draws via lib/game/draw.ts
+    │       ├── BuildPhase.tsx           ← 02 — Build Phase screen: owns the BuildSession, pointer + Q/E/Esc input, layout
+    │       ├── BoardCanvas.tsx          ← the 400×560 board canvas (HiDPI) + the game loop (step physics, draw)
     │       ├── PieceTray.tsx            ← 10 tray slots (Available / Placed)
     │       ├── PieceSvg.tsx             ← a piece outline as SVG (tray icons, off-board drag ghost)
     │       └── HeightRuler.tsx          ← static band labels (§5.1)
@@ -225,11 +246,11 @@ Elevation/
         ├── game/
         │   ├── geometry.ts              ← shapeOutline() (piece vertices, px), transforms, hit test, SAT overlap
         │   ├── board.ts                 ← board size + PLATFORM_RECT / PLATFORM_OUTLINE in px
-        │   ├── buildState.ts            ← build-phase reducer: pick up / move / drop / rotate rules
+        │   ├── buildSession.ts          ← BuildSession: build-phase rules (freeze, pickup, drop, rotate) driving the physics
         │   └── draw.ts                  ← custom canvas renderer (platform + pieces)
         ├── physics/
-        │   ├── constants.ts             ← PX_PER_METER, platform, timings, toPx/toMeters
-        │   └── world.ts                 ← createPhysicsWorld(): engine, renderer, runner, platform. Not mounted in Phase 1
+        │   ├── constants.ts             ← PX_PER_METER, platform, gravity, step + solver settings, timings, toPx/toMeters
+        │   └── world.ts                 ← PhysicsWorld: Matter engine + platform + piece bodies (no game rules)
         └── supabase/
             └── types.ts                 ← row types for players / scores / daily_puzzle
 ```
@@ -260,11 +281,12 @@ npm run lint
 npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first so Next generates its route types (e.g. LayoutProps)
 ```
 
-**What you should see (Phase 1):** the Figma "02 — Build Phase" screen at 1440×900. It has a top bar ("Build Time: 02:00", static until Phase 3, and a live "Pieces Left: N / 10"), the Height Ruler, the 400×560 board with the grey platform, and the 10-piece tray.
-- Drag a tray piece onto the board to place it. **Q/E** rotate it 15° while held or right after placing.
-- The newest piece is blue. Drops that overlap another piece or the platform show grey and dashed, and the piece bounces back.
-- Drag a placed piece off the board to return it to the tray. **Esc** cancels a drag.
-- Nothing falls yet: there is no physics in Phase 1.
+**What you should see (Phase 2):** the Figma "02 — Build Phase" screen at 1440×900. It has a top bar ("Build Time: 02:00", static until Phase 3, and a live "Pieces Left: N / 10"), the Height Ruler, the 400×560 board with the grey platform, and the 10-piece tray.
+- Drag a tray piece onto the board. It **hangs where you drop it (blue, frozen)** until you place the next piece, then falls and stacks under gravity.
+- **Q/E** rotate 15° while holding, or rotate the frozen piece right after placing.
+- Drops that overlap another piece or the platform show grey and dashed, and the piece bounces back.
+- Grab any placed piece to move it, and whatever rested on it falls. Drag it off the board to return it to the tray. **Esc** cancels a drag.
+- Pieces that fall off the board return to the tray.
 
 **Stack versions:** Next.js 16.4 (App Router, Turbopack, `cacheComponents` on), React 19.3, TypeScript 5, Matter.js 0.20.
 ⚠ Next 16 has breaking changes from older Next versions. Check `node_modules/next/dist/docs/` before relying on remembered APIs (see `AGENTS.md`).
@@ -319,11 +341,14 @@ Resolved and removed: backend provider, identity model, deployment target, visua
 - **Hackathon logistics**
   - [ ] Confirm with organizers that offline (not in-app) use of SerpAPI and Gemini satisfies the sponsor track (§9.2)
 - **Raised during Phase 0**
-  - [x] ~~Keep `Matter.Render` or switch to a custom draw loop?~~ **Custom draw** (`src/lib/game/draw.ts`), decided in Phase 1. Phase 2 should remove `Matter.Render` from `world.ts` and draw body vertices with `drawBoard()`.
+  - [x] ~~Keep `Matter.Render` or switch to a custom draw loop?~~ **Custom draw** (`src/lib/game/draw.ts`). `Matter.Render` was removed from `world.ts` in Phase 2.
 - **Raised during Phase 1**
-  - [ ] Keep the **no-overlap drop rule** once physics exists? The alternative is allowing overlap and letting Matter resolve it, which risks pieces being flung. Playtest in Phase 2.
-  - [ ] Should a placed piece snap or drop to rest, or stay exactly where it's released? With §4.3 the newest piece floats where it's released until the next one is placed. Playtest whether that feels right.
+  - [ ] Keep the **no-overlap drop rule**? It's still in place in Phase 2. The alternative is allowing overlap and letting Matter resolve it, which risks pieces being flung. Playtest.
+  - [ ] The newest piece floats exactly where it's released until the next placement (§4.3 as written). Playtest whether players expect it to drop to rest instead.
   - [ ] Tray icons are all normalized to 32px, as in Figma, so they don't show relative size. Fine for 3 shapes, but it may need revisiting for generated items (§3.4).
+- **Raised during Phase 2**
+  - [ ] **Fallen pieces.** During build, a piece that leaves the board currently returns to the tray (forgiving, §4.5). Should it instead be lost, matching §2.3 "simply disappears"? Also decide whether a piece resting off the platform but still on the board counts as fallen (§4.7, §4.8).
+  - [ ] **Gravity strength.** The Matter default is ~2.5 g at 40 px/m. Pick by feel (snappy vs readable collapses) before tuning disasters.
 
 ---
 
@@ -337,6 +362,38 @@ Newest first. One entry per work session: **date · who · phase · what changed
 - Decisions:
 - Next / blockers:
 -->
+
+### 2026-10-24 · Joshua (+ Claude Code) · Phase 2
+- **Changed**
+  - Placed pieces are now Matter.js bodies. `PhysicsWorld` (`world.ts`) replaces `createPhysicsWorld` and `Matter.Render`.
+  - New `BuildSession` (`buildSession.ts`) replaces the Phase 1 `buildState.ts` reducer. Positions now live in bodies, so the rules moved into a class React subscribes to.
+  - The freeze-on-placement rule (§4.3), pickup with body removal (§4.4), and per-material friction and mass are in.
+  - Fixed-step game loop in `BoardCanvas`. Pieces that fall off the board return to the tray.
+  - Dev hook `window.__elevation`.
+- **Decisions**
+  - Bodies are built from `shapeOutline()` vertices.
+  - Each body is created dynamic → `setMass` → `setStatic` (needed for a correct unfreeze).
+  - Solver iterations are 10 / 8.
+  - Fallen pieces return to the tray (open in §8).
+  - The no-overlap drop rule is kept (open in §8).
+- **Verified**
+  - `tsc`, `lint` and `build` pass, including the static prerender.
+  - Headless Chrome over CDP with real input, reading body poses through `__elevation`. Results:
+
+    | Check | Result |
+    |---|---|
+    | Frozen piece holds mid-air | ✓ |
+    | Placing the next piece drops the previous one onto the platform | y=484.1, expected 484 |
+    | A piece that misses the platform falls off → tray | ✓ |
+    | Pentagon settles on top of the square | y=412.5 |
+    | E rotates the frozen piece 15° in place | ✓ |
+    | Pulling out the bottom square drops the pentagon to the platform | ✓ |
+    | Esc restores a picked-up piece | ✓ |
+    | A frozen piece supports the previous one in mid-air | y=300.3 |
+    | Unfreezing lets that pair stack on the platform | ✓ |
+
+    No console errors.
+- **Next / blockers:** Phase 3 (build timer → unfreeze all → settle → measure height and band). Playtest feel: gravity, iterations, and the no-overlap rule.
 
 ### 2026-10-24 · Joshua (+ Claude Code) · Phase 1
 - **Changed**

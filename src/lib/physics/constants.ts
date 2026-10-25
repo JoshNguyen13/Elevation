@@ -22,6 +22,14 @@ export const PLATFORM_CORNER_RADIUS_PX = 6;
 
 export const GRAVITY_Y = 1; // Matter.js default; scaled internally by gravity.scale
 
+// Matter.js is stepped manually at a fixed rate so drawing and game rules stay in sync with it.
+export const PHYSICS_STEP_MS = 1000 / 60;
+// Longest frame gap to catch up on (e.g. after a background tab) before dropping time.
+export const MAX_FRAME_MS = 100;
+// Solver passes, above Matter's defaults (6 / 4) so stacks jitter less. TBD — tune for feel vs CPU.
+export const POSITION_ITERATIONS = 10;
+export const VELOCITY_ITERATIONS = 8;
+
 // §3.2 / §4.9 — no material ever bounces.
 export const RESTITUTION = 0;
 

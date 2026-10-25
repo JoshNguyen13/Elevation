@@ -1,0 +1,328 @@
+// The build phase: which pieces are in the tray, held, or placed, and the
+// rules for picking up, dropping and rotating them. Placed pieces are Matter.js
+// bodies (PhysicsWorld), which own their positions. React subscribes to the
+// snapshot (useSyncExternalStore) and the canvas draws from drawables() each frame.
+import { getMaterial } from "@/data/materials";
+import {
+  DAILY_PIECE_COUNT,
+  MAX_FRAME_MS,
+  PHYSICS_STEP_MS,
+  ROTATION_STEP_DEG,
+} from "@/lib/physics/constants";
+import { PhysicsWorld, type Pose } from "@/lib/physics/world";
+import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE } from "./board";
+import type { DrawnPiece } from "./draw";
+import {
+  boundsOf,
+  containsPoint,
+  overlaps,
+  shapeOutline,
+  transformOutline,
+  type Vec,
+} from "./geometry";
+
+export type PieceStatus = "tray" | "held" | "placed";
+
+export interface Piece {
+  uid: string;
+  materialId: string;
+  status: PieceStatus;
+  // Placement order; the highest is the newest piece. null while in the tray.
+  placedSeq: number | null;
+}
+
+export interface Held {
+  uid: string;
+  angle: number;
+  // Piece center minus pointer, in board px, so a picked-up piece doesn't jump.
+  grab: Vec;
+  pointerClient: Vec;
+  // null while the pointer is off the board.
+  pointerBoard: Vec | null;
+  // Where a piece picked up off the board was, restored on cancel. null if it came from the tray.
+  origin: { pose: Pose; frozen: boolean; placedSeq: number } | null;
+}
+
+export interface Preview {
+  pose: Pose;
+  outline: Vec[];
+  valid: boolean;
+}
+
+export interface BuildSnapshot {
+  pieces: readonly Piece[];
+  held: Held | null;
+  // The newest placed piece: static until the next placement (§4.3).
+  frozenUid: string | null;
+}
+
+const ROTATION_STEP_RAD = (ROTATION_STEP_DEG * Math.PI) / 180;
+
+// Placeholder until the daily seed exists (Phase 5, §6). Mirrors the Figma tray.
+const PLACEHOLDER_MATERIAL_IDS = Array.from(
+  { length: DAILY_PIECE_COUNT },
+  (_, i) => ["square", "triangle", "pentagon"][i % 3],
+);
+
+const localOutlines = new Map<string, Vec[]>();
+
+// The material's outline at angle 0, centered on its centroid, in px.
+export function localOutline(materialId: string): Vec[] {
+  let outline = localOutlines.get(materialId);
+  if (!outline) {
+    outline = shapeOutline(getMaterial(materialId).shape);
+    localOutlines.set(materialId, outline);
+  }
+  return outline;
+}
+
+const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
+
+function isInsideBoard(outline: Vec[]): boolean {
+  const b = boundsOf(outline);
+  return b.minX >= 0 && b.minY >= 0 && b.maxX <= BOARD_WIDTH_PX && b.maxY <= BOARD_HEIGHT_PX;
+}
+
+function isOffBoard(outline: Vec[]): boolean {
+  const b = boundsOf(outline);
+  return b.minY > BOARD_HEIGHT_PX || b.maxX < 0 || b.minX > BOARD_WIDTH_PX;
+}
+
+export class BuildSession {
+  private readonly world = new PhysicsWorld();
+  private pieces: Piece[];
+  private held: Held | null = null;
+  private frozenUid: string | null = null;
+  private nextSeq = 0;
+  private stepBacklogMs = 0;
+  private snapshot: BuildSnapshot;
+  private readonly listeners = new Set<() => void>();
+
+  constructor(materialIds: string[] = PLACEHOLDER_MATERIAL_IDS) {
+    this.pieces = materialIds.map((materialId, i) => ({
+      uid: `piece-${i}`,
+      materialId,
+      status: "tray",
+      placedSeq: null,
+    }));
+    this.snapshot = this.createSnapshot();
+  }
+
+  // --- React subscription -------------------------------------------------
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  getSnapshot = () => this.snapshot;
+
+  private createSnapshot(): BuildSnapshot {
+    return { pieces: this.pieces, held: this.held, frozenUid: this.frozenUid };
+  }
+
+  private emit() {
+    this.snapshot = this.createSnapshot();
+    this.listeners.forEach((listener) => listener());
+  }
+
+  private setStatus(uid: string, status: PieceStatus, placedSeq: number | null) {
+    this.pieces = this.pieces.map((p) => (p.uid === uid ? { ...p, status, placedSeq } : p));
+  }
+
+  private piece(uid: string): Piece {
+    return this.pieces.find((p) => p.uid === uid)!;
+  }
+
+  private placedPieces(): Piece[] {
+    return this.pieces.filter((p) => p.status === "placed");
+  }
+
+  // --- Queries -------------------------------------------------------------
+
+  // Topmost placed piece under a board point: the frozen one first, then newest first.
+  pieceAt(point: Vec): Piece | null {
+    const rank = (p: Piece) => (p.uid === this.frozenUid ? Infinity : p.placedSeq!);
+    return (
+      this.placedPieces()
+        .sort((a, b) => rank(b) - rank(a))
+        .find((p) => containsPoint(this.world.vertices(p.uid), point)) ?? null
+    );
+  }
+
+  // No overlap with the platform or any placed piece's current body.
+  private isClear(outline: Vec[], ignoreUid: string): boolean {
+    if (overlaps(outline, PLATFORM_OUTLINE)) return false;
+    return this.placedPieces().every(
+      (p) => p.uid === ignoreUid || !overlaps(outline, this.world.vertices(p.uid)),
+    );
+  }
+
+  // Where the held piece would land if released now, or null when the pointer is off the board.
+  getPreview(): Preview | null {
+    const { held } = this;
+    if (!held?.pointerBoard) return null;
+    const local = localOutline(this.piece(held.uid).materialId);
+
+    // Clamp so the whole piece stays on the board — pieces can go anywhere on it (§2.3).
+    const b = boundsOf(transformOutline(local, 0, 0, held.angle));
+    const x = clamp(held.pointerBoard.x + held.grab.x, -b.minX, BOARD_WIDTH_PX - b.maxX);
+    const y = clamp(held.pointerBoard.y + held.grab.y, -b.minY, BOARD_HEIGHT_PX - b.maxY);
+    const outline = transformOutline(local, x, y, held.angle);
+
+    return { pose: { x, y, angle: held.angle }, outline, valid: this.isClear(outline, held.uid) };
+  }
+
+  drawables(): DrawnPiece[] {
+    const placed = this.placedPieces().sort((a, b) => a.placedSeq! - b.placedSeq!);
+    const drawn: DrawnPiece[] = placed.map((p) => ({
+      outline: this.world.vertices(p.uid),
+      look: p.uid === this.frozenUid ? "newest" : "placed",
+    }));
+    const preview = this.getPreview();
+    if (preview) drawn.push({ outline: preview.outline, look: preview.valid ? "preview" : "blocked" });
+    return drawn;
+  }
+
+  // Debug view for tests and the console (window.__elevation in dev).
+  debugPieces() {
+    return this.pieces.map((p) => ({
+      ...p,
+      frozen: p.uid === this.frozenUid,
+      pose: p.status === "placed" ? this.world.pose(p.uid) : null,
+    }));
+  }
+
+  // --- Input ---------------------------------------------------------------
+
+  pickUpFromTray(uid: string, pointerClient: Vec, pointerBoard: Vec | null) {
+    if (this.held || this.piece(uid).status !== "tray") return;
+    this.held = { uid, angle: 0, grab: { x: 0, y: 0 }, pointerClient, pointerBoard, origin: null };
+    this.setStatus(uid, "held", null);
+    this.emit();
+  }
+
+  // Picking up a placed piece takes its body out of the world, so anything
+  // leaning on it loses support and physics resolves it (§4.4).
+  pickUpAt(pointerBoard: Vec, pointerClient: Vec): boolean {
+    if (this.held) return false;
+    const piece = this.pieceAt(pointerBoard);
+    if (!piece) return false;
+
+    const pose = this.world.pose(piece.uid);
+    const frozen = piece.uid === this.frozenUid;
+    this.world.removePiece(piece.uid);
+    if (frozen) this.frozenUid = null;
+
+    this.held = {
+      uid: piece.uid,
+      angle: pose.angle,
+      grab: { x: pose.x - pointerBoard.x, y: pose.y - pointerBoard.y },
+      pointerClient,
+      pointerBoard,
+      origin: { pose, frozen, placedSeq: piece.placedSeq! },
+    };
+    this.setStatus(piece.uid, "held", null);
+    this.emit();
+    return true;
+  }
+
+  movePointer(pointerClient: Vec, pointerBoard: Vec | null) {
+    if (!this.held) return;
+    this.held = { ...this.held, pointerClient, pointerBoard };
+    this.emit();
+  }
+
+  // 1 = clockwise (E), -1 = counter-clockwise (Q). §2.2
+  rotate(direction: 1 | -1) {
+    const delta = direction * ROTATION_STEP_RAD;
+    if (this.held) {
+      this.held = { ...this.held, angle: this.held.angle + delta };
+      this.emit();
+      return;
+    }
+
+    // Nothing held: rotate the piece just placed (it's still frozen), if it still fits.
+    const uid = this.frozenUid;
+    if (!uid) return;
+    const pose = this.world.pose(uid);
+    const angle = pose.angle + delta;
+    const outline = transformOutline(localOutline(this.piece(uid).materialId), pose.x, pose.y, angle);
+    if (isInsideBoard(outline) && this.isClear(outline, uid)) this.world.setAngle(uid, angle);
+  }
+
+  drop() {
+    const { held } = this;
+    if (!held) return;
+    const preview = this.getPreview();
+
+    // Released off the board: back to the tray (unused pieces just aren't scored, §2.3).
+    if (!preview) return this.returnHeldToTray();
+    if (!preview.valid) return this.cancel();
+
+    // Freeze rule (§4.3): placing this piece locks in the previous one (it becomes
+    // dynamic), and this one becomes the new frozen piece — re-placed pieces count as new.
+    if (this.frozenUid) this.world.setFrozen(this.frozenUid, false);
+    this.addBody(held.uid, preview.pose, true);
+    this.frozenUid = held.uid;
+    this.setStatus(held.uid, "placed", this.nextSeq++);
+    this.held = null;
+    this.emit();
+  }
+
+  cancel() {
+    const { held } = this;
+    if (!held) return;
+    const { origin } = held;
+    if (!origin) return this.returnHeldToTray();
+
+    // Put it back where it was — unless the pieces it supported have since fallen into that spot.
+    const outline = transformOutline(
+      localOutline(this.piece(held.uid).materialId),
+      origin.pose.x,
+      origin.pose.y,
+      origin.pose.angle,
+    );
+    if (!this.isClear(outline, held.uid)) return this.returnHeldToTray();
+
+    this.addBody(held.uid, origin.pose, origin.frozen);
+    if (origin.frozen) this.frozenUid = held.uid;
+    this.setStatus(held.uid, "placed", origin.placedSeq);
+    this.held = null;
+    this.emit();
+  }
+
+  private returnHeldToTray() {
+    this.setStatus(this.held!.uid, "tray", null);
+    this.held = null;
+    this.emit();
+  }
+
+  private addBody(uid: string, pose: Pose, frozen: boolean) {
+    const { materialId } = this.piece(uid);
+    this.world.addPiece(uid, getMaterial(materialId), localOutline(materialId), pose, frozen);
+  }
+
+  // --- Simulation ----------------------------------------------------------
+
+  // Advance physics by real elapsed time, in fixed steps.
+  step(elapsedMs: number) {
+    this.stepBacklogMs = Math.min(this.stepBacklogMs + elapsedMs, MAX_FRAME_MS);
+    while (this.stepBacklogMs >= PHYSICS_STEP_MS) {
+      this.world.step(PHYSICS_STEP_MS);
+      this.stepBacklogMs -= PHYSICS_STEP_MS;
+    }
+
+    // A piece that falls off the board goes back to the tray. TBD: §4.8 despawn
+    // grace period / tower zone, and whether a fallen piece is lost instead (§8).
+    const fallen = this.placedPieces().filter(
+      (p) => p.uid !== this.frozenUid && isOffBoard(this.world.vertices(p.uid)),
+    );
+    if (fallen.length === 0) return;
+    for (const p of fallen) {
+      this.world.removePiece(p.uid);
+      this.setStatus(p.uid, "tray", null);
+    }
+    this.emit();
+  }
+}

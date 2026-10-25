@@ -2,7 +2,7 @@
 
 import type { PointerEvent } from "react";
 import { getMaterial } from "@/data/materials";
-import { localOutline, type Piece } from "@/lib/game/buildState";
+import { localOutline, type Piece } from "@/lib/game/buildSession";
 import { boundsOf } from "@/lib/game/geometry";
 import { colors } from "@/lib/theme";
 import PieceSvg from "./PieceSvg";
@@ -19,7 +19,7 @@ function iconOutline(materialId: string) {
 }
 
 interface PieceTrayProps {
-  pieces: Piece[];
+  pieces: readonly Piece[];
   onPickUp: (uid: string, event: PointerEvent<HTMLButtonElement>) => void;
 }
 
