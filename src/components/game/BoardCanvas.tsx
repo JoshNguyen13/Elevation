@@ -69,7 +69,11 @@ export default function BoardCanvas({
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      // Restart / leaving mid-test raises no "done": don't leave the disaster loop playing.
+      sound.stopAmbience(0.3);
+    };
   }, [canvasRef, session, view]);
 
   return (
