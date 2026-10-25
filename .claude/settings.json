@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(node --version)",
+      "PowerShell(npm --version)",
+      "Bash(mkdir -p \"/c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/fig\")",
+      "Read(//c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/**)",
+      "Bash(unzip -o -q \"/c/Users/joshn/Downloads/Projects/Elevation/Elevation.fig\")",
+      "Bash(mkdir -p /c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/figtool)",
+      "Bash(npm init *)",
+      "Bash(npm i *)",
+      "Bash(node /c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/figtool/decode.js /c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/fig/canvas.fig /c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/fig/canvas.json)",
+      "Read(//c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/figtool/**)",
+      "Bash(node -e ' *)",
+      "Bash(npx --yes create-next-app@latest elevation --ts --app --src-dir --eslint --no-tailwind --import-alias \"@/*\" --use-npm --turbopack --skip-install --yes)",
+      "Read(//c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/elevation/**)",
+      "Read(//c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/elevation/src/app/**)",
+      "Read(//c/Users/joshn/AppData/Local/Temp/claude/c--Users-joshn-Downloads-Projects-Elevation/b52e8acd-b503-447a-a965-4ccc5ae9cc61/scratchpad/elevation/public/**)",
+      "PowerShell(npm run dev)",
+      "PowerShell($edge = @\\(\"C:\\\\Program Files \\(x86\\)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\",\"C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\"\\) | Where-Object { Test-Path $_ } | Select-Object -First 1; $out = \"C:\\\\Users\\\\joshn\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-joshn-Downloads-Projects-Elevation\\\\b52e8acd-b503-447a-a965-4ccc5ae9cc61\\\\scratchpad\\\\phase0.png\"; $prof = \"C:\\\\Users\\\\joshn\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-joshn-Downloads-Projects-Elevation\\\\b52e8acd-b503-447a-a965-4ccc5ae9cc61\\\\scratchpad\\\\edgeprof\"; $p = Start-Process -FilePath $edge -ArgumentList \"--headless=new\",\"--disable-gpu\",\"--user-data-dir=$prof\",\"--window-size=1280,900\",\"--virtual-time-budget=8000\",\"--screenshot=$out\",\"http://localhost:3000\" -PassThru -Wait; Test-Path $out)"
+    ]
+  }
+}
