@@ -22,6 +22,18 @@ Landings and hits are `impact` events with `meteor: true` (every disaster body's
 - Open:
 -->
 
+## 2026-10-25 · Josh (integrator) · main (earthquake difficulty)
+- Changed (`disasters/earthquake.ts`, on top of the surges): the earthquake now shakes up and down as well as sideways, and grows for real.
+  - **Vertical:** `gy` at 1.618× the sideways rate (an uneven loop that never repeats), starting at 0.1 g, +0.012 g/s, capped at 0.8 g so pieces never launch. `visualShake` uses both axes.
+  - **Sideways:** `gPerSecond` 0.012 → 0.02, `hzPerSecond` 0.03 → 0. Ground travel is accel / (2πf)², so the old rising frequency cancelled the rising force and travel stayed flat for the whole test.
+- Tried / numbers: a headless Node run of `BuildSession` (outside the repo) over the 12 puzzles from 2026-11-01, every 3 days. Two bot builds each: "column" (largest first, centered) and "spread" (side by side).
+  - Mean stability, column / spread, after the new lineup and surges:
+    - Before: earthquake 3.09 / 3.77, 5/5 on 14 of 24 builds. Tornado 3.37 / 3.75 (15/24), cat 2.20 / 1.79, fat guy 1.70 / 1.59, meteor 1.53 / 1.74, wind 1.06 / 0.85.
+    - **Now:** earthquake 2.01 / 2.03, 1/24 at 5/5, with scores spread across 0–5.
+    - On the pre-split code: vertical alone barely helped (12/24), because Matter's friction doesn't depend on load. A steady frequency without vertical reached 6/24.
+- Cues: `tremor` is still per surge. Strength is amplitude / `maxG`, and `maxG` follows `gPerSecond`.
+- Open: the tornado is now the easy one (15/24 builds at 5/5 in the same run). Earthquake scores from before this change aren't comparable.
+
 ## 2026-10-25 · Jason (+ Claude Code) · disasters/readability
 New disaster lineup and the build-up. Joshua OK'd the shared-file changes listed below.
 
