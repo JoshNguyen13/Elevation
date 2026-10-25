@@ -1,0 +1,19 @@
+{
+  "name": "hardcover book",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1272,
+    "outputTokens": 79
+  },
+  "estimate": {
+    "width_m": 0.16,
+    "height_m": 0.03,
+    "archetype": "flat-wide",
+    "taper": 1,
+    "density_kg_per_l": 0.8,
+    "surface_roughness": 0.3
+  }
+}

@@ -13,12 +13,12 @@
 
 **Elevation** is a 2D, browser-based daily puzzle game. Every player gets the same 10 pieces and two minutes to stack them as high and stable as they can, then the tower is hit by that day's natural disaster. Score = height + survival time, shown as a percentile against everyone who played today (Wordle × Tricky Towers × Krillion results).
 
-**Current phase: Phase 5 — Daily system + leaderboard. ✅ Complete (code).** The whole loop is in: today's puzzle (a pure function of the date) → intro → build → disaster test → results with percentile, leaderboard and a display name. It runs fully offline. **The Supabase project is not created yet**, so the shared leaderboard and percentile are untested against a real database. To switch them on: create a project, run `supabase/migrations/0001_init.sql`, and set the two `NEXT_PUBLIC_SUPABASE_*` vars (§7).
+**Current phase: Phase 6 — Materials library. ✅ Complete.** The cost-safe SerpAPI + Gemini pipeline works end to end: `src/data/items.generated.json` holds **20 real items** (traffic cone to giraffe), built from 20 SerpAPI + 20 Gemini calls (about $0.01 total). The daily puzzle now draws from these 20 plus the 3 basic shapes. Board zoom is in too. Pure real proportions are kept on purpose, so some days mix tiny and huge pieces (reviewed and accepted; numbers in §8, "Raised during Phase 6"). Phase 5's Supabase leaderboard is also still unverified against a real project (§7).
 **Next:**
+- **Track D:** optionally grow the library (20 more candidates are ready in `candidates.json`; §3.4). Size spread is an accepted trade-off (§8, Phase 6).
 - **Everyone:** create the Supabase project and verify against it (§7). Only a mock PostgREST server has been tested.
-- **Track A:** tune disaster magnitudes by playtesting. Every number in `src/lib/physics/disasters.ts` is a first pass.
+- **Track A:** tune disaster magnitudes by playtesting. Every number in `src/lib/physics/disasters.ts` is a first pass. Once real items exist, also playtest day sets with huge and tiny items together.
 - **Track B (Phase 7):** tutorial / "How to Play", juice, polish of the Intro and Results screens.
-- **Track D (Phase 6):** the materials library. The daily puzzle already draws from `MATERIALS_POOL`, so new items appear automatically.
 
 Read "Build-phase rules" in §4 first.
 
@@ -31,7 +31,7 @@ Read "Build-phase rules" in §4 first.
 | **3 — Build → Test transition** ✅ | 2-min build timer, structure lock, settling window, height measurement + banding (§5.1) | Single computer, **then split into 4 tracks** |
 | **4 — Disasters** ✅ | One disaster end to end first (wind), escalation + stability score, then the others | Track A |
 | **5 — Daily system + leaderboard** ✅ | Supabase schema, device ID + display name, date seed → materials + disaster, percentile query | Track C |
-| 6 — Materials library | Offline SerpAPI + Gemini pipeline that grows the real-world-object library | Track D |
+| **6 — Materials library** ✅ (20 real items) | Offline SerpAPI + Gemini pipeline that grows the real-world-object library | Track D |
 | 7 — Polish & pitch | Tutorial, results screen, juice (sound, shake, particles), pitch deck | Track B + all |
 
 **Cut order if time runs short:** library size (6) → disaster variety beyond the first (4) → breaking/durability (stretch). **Never cut** the core stacking feel or the daily/leaderboard hook.
@@ -88,7 +88,7 @@ interface Material {
 // There is NO restitution field: restitution is fixed at 0 for every material (§3.2).
 ```
 
-**Pool:** `MATERIALS_POOL = BASIC_SHAPES + GENERATED_ITEMS`, where `GENERATED_ITEMS` is loaded from `src/data/items.generated.json` (currently `[]`). The daily seed draws from this pool.
+**Pool:** `MATERIALS_POOL = BASIC_SHAPES + GENERATED_ITEMS`, where `GENERATED_ITEMS` is loaded from `src/data/items.generated.json` (currently `[]`). The daily seed draws from this pool. In dev only, `NEXT_PUBLIC_MOCK_ITEMS=1` also adds the fake items from `src/data/items.mock.json` (§3.4). Items repeat across days (each day draws independently); the library only ever grows, because stored daily puzzles reference ids.
 
 **Prototype shapes (§3.1). Numbers are TBD placeholders.**
 | id | Shape (m) | Mass | Friction | Design intent |
@@ -112,6 +112,40 @@ Center of mass = geometric centroid (Matter.js does this automatically for polyg
   - The height is shown as **real-world meters + band**, e.g. "5.4 m · Mound". Meters = px ÷ the day's `pxPerMeter`.
 - **Stability** (implemented): 0.0–5.0. Starting formula: `5 × min(time_survived / MAX_TEST_DURATION, 1)` (`stabilityScore()` in `scoring.ts`).
 - **Combined** (implemented): 50/50 height + stability. Height % and stability × 20 are averaged and rounded to 0–100 (`combinedScore()`). TBD.
+
+### 3.4 Materials pipeline (Phase 6; `scripts/materials/`, offline, Track D)
+Grows `src/data/items.generated.json` with real-world objects. **The game never calls SerpAPI or Gemini.** The scripts are plain Node (no dependencies) and never import from `src/`.
+
+**Commands** (keys load from `.env.local` automatically):
+| Command | What it does | Spends credit? |
+|---|---|---|
+| `npm run materials:plan` | Lists every candidate's status and the exact number of paid calls a run would make, plus lifetime spend. | No |
+| `npm run materials:run -- --limit 1 --dry-run` | Prints the exact Gemini request for the next item. | No |
+| `npm run materials:run -- --limit 1` | The **canary**: 1 SerpAPI search + 1 Gemini call for 1 new item. | **2 calls** |
+| `npm run materials:run -- --limit 20` | Up to 20 new items. `--limit` is required; the ceiling is 25 per run. | up to 40 calls |
+| `npm run materials:run -- --limit 1 --only "traffic cone"` | Target a specific object (any name, not only the candidates). | 2 calls |
+| `npm run materials:rebuild` | Re-derive items from the caches after changing a conversion rule. | No |
+| `npm run materials:mock -- --limit 20` | Fake items for testing into `items.mock.json`. | No |
+| `npm run materials:check` / `materials:test` | Validate both library files / unit-test the conversion rules. | No |
+
+**How a new item is made.** One SerpAPI Google Images search gives a reference photo. One Gemini call (`gemini-3.1-flash-lite` by default; `GEMINI_MODEL` overrides it) looks at the name + photo and returns six values as structured JSON: `width_m`, `height_m`, `archetype`, `taper`, `density_kg_per_l`, `surface_roughness`. `convert.mjs` turns that into a `Material`:
+- `round` → circle. Otherwise `taper ≥ 0.9` → box, lower → convex trapezoid (narrow top). Never a silhouette hitbox.
+- **Real proportions are kept.** Only clamped to engine limits (0.03–12 m per side, aspect ≤ 10).
+- **Mass** = `2 × (area × density / 3.24)^0.35`, clamped to 0.4–12. **Friction** = `0.7 + 0.8 × roughness`, clamped to 0.7–1.5. All constants are in `convert.mjs` (`LIMITS`).
+- No icon: the game draws the physics outline, which keeps the flat minimalist look. The SerpAPI photo is reference material only and is never shown.
+
+**Cost safety** (the point of this design; constants in `lib.mjs`):
+- **Nothing is paid for twice.** Each API answer is cached on disk: `scripts/cache/serpapi/` and `scripts/cache/gemini/` are **committed**, so teammates reuse them. Photos in `scripts/cache/images/` are git-ignored (web images aren't ours to commit).
+- **Items already in the library, or with a cached estimate, make zero calls.** The library file is append-only; only `--rebuild` re-derives items, and only from cache.
+- **A run needs `--limit N`** (no default; max `MAX_ITEMS_PER_RUN` = 25).
+- **Fail fast:** any API error stops the whole run (one retry only for 429 / 5xx, and for Gemini 403, which was intermittent in practice). 3 invalid answers in a row also stop it. An invalid answer is cached so it isn't paid for again (`--retry-invalid` pays again on purpose).
+- Calls are paced (default 4s; `--delay-ms`) for SerpAPI's 50/hour and Gemini's free-tier limits. Every real call is logged to `scripts/cache/ledger.jsonl` (no keys, no responses); `materials:plan` prints the totals.
+- **Bumping `PROMPT_VERSION` or changing the model deliberately makes every cached estimate stale** and the next run pays again. Don't, unless you mean it.
+- Reference prices at 2026-10-24: SerpAPI free plan 250 searches/month (50/hour; cached and errored searches don't count). Gemini 3.1 Flash-Lite about $0.25 / $1.50 per 1M input / output tokens, with a free tier. One item is a few hundred tokens, so the whole library costs cents. Re-check the pricing pages if you rely on these.
+
+**Testing without credit.** `npm run materials:mock` writes deterministic fake items (sizes 0.1–4 m) to `src/data/items.mock.json`. Set `NEXT_PUBLIC_MOCK_ITEMS=1` in `.env.local` and restart `npm run dev` to play with them. This is dev-only, and **it also puts the game fully offline** (`client.ts`), so a puzzle or score using fake ids can never reach the shared Supabase. Keep `items.mock.json` as `[]` in commits.
+
+**Adding a batch:** edit `scripts/materials/candidates.json` (or use `--only`) → `materials:plan` → canary → batch → `materials:check` → review the `git diff` of `items.generated.json` → commit the library **and** the new cache files.
 
 ---
 
@@ -249,7 +283,15 @@ Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, 
   - **Dev-only switches** (disabled in production builds):
     - `?replay=1`: unsubmitted practice rounds.
     - `?disaster=flood`: forces a disaster.
+    - `?date=2026-11-03`: previews that day's puzzle (practice mode, generated locally, no database access for that date).
     - `window.__elevation` (the session).
+- **Zoom** (`src/lib/game/boardView.ts`, view only).
+  - `BoardView` is a camera over the fixed 400×560 board: `{ zoom 1–4×, x, y }`, subscribable like `BuildSession`. The physics, hit tests, overlap checks and scoring never see it.
+  - **Controls:** `+` / `−` buttons and a reset (`2.3x`) beside the board, mouse wheel (zooms toward the cursor), and dragging empty space pans.
+  - **Wiring:** `BoardCanvas` calls `view.applyTo(ctx, dpr)` each frame. `BuildPhase.toBoard()` goes through `view.toBoard()`, so drops, pick-ups and previews land under the cursor at any zoom. The off-board drag ghost is scaled by the zoom.
+  - **Frame:** the board always has a 2px grey outline (black while zoomed in, accent blue while you hold a piece). It's a CSS `outline`, not a border, because a border would add to the canvas box and offset the pointer mapping.
+  - **Why:** items keep their real proportions, so a ketchup bottle can be a few px next to an elephant. Zoom is how you place small ones. It works in the build and testing phases.
+  - **Limit:** the frame is fixed. Zoom can't make an item wider than the 220px platform fit better; it only helps with small ones.
 - **Rendering.** Custom canvas draw (`src/lib/game/draw.ts`), not `Matter.Render`. The held piece is drawn on the canvas when the pointer is over the board, and as a fixed-position SVG ghost when it's off the board.
 
 ---
@@ -294,7 +336,16 @@ Elevation/
 ├── .env.example                ← required env var NAMES (copy to .env.local)
 ├── package.json / tsconfig.json / next.config.ts / eslint.config.mjs
 ├── public/                     ← static assets (piece icons will go here)
-├── scripts/                    ← Phase 6: offline SerpAPI + Gemini materials pipeline (Track D). Never imported by the app
+├── scripts/
+│   ├── materials/              ← Phase 6 offline pipeline (Track D). Never imported by the app, never imports from src/
+│   │   ├── generate.mjs        ← CLI: plan / run / rebuild / mock (see §3.4)
+│   │   ├── serp.mjs, gemini.mjs ← the two API clients (one call each per new item)
+│   │   ├── convert.mjs         ← estimate → Material (pure), validation, tunable LIMITS
+│   │   ├── mock.mjs            ← deterministic fake estimates, no API
+│   │   ├── lib.mjs             ← paths, cost guards, caches, ledger
+│   │   ├── check.mjs, convert.test.mjs ← materials:check / materials:test
+│   │   └── candidates.json     ← 40 hand-written object names (edit freely)
+│   └── cache/                  ← serpapi/ + gemini/ + ledger.jsonl are committed; images/ is git-ignored
 ├── supabase/
 │   └── migrations/             ← 0001_init.sql: players / scores / daily_puzzle + row-level-security policies (Track C)
 └── src/
@@ -317,7 +368,8 @@ Elevation/
     │       └── HeightRuler.tsx          ← band ticks at their real heights; highlights the measured band (§5.1)
     ├── data/
     │   ├── materials.ts                 ← Material schema, BASIC_SHAPES, MATERIALS_POOL, getMaterial()
-    │   └── items.generated.json         ← pipeline output (Phase 6); currently []
+    │   ├── items.generated.json         ← the real library: pipeline output (Phase 6), append-only; currently []
+    │   └── items.mock.json              ← FAKE items for testing (npm run materials:mock); keep as [] in commits
     └── lib/
         ├── theme.ts                     ← color tokens for canvas drawing
         ├── game/
@@ -368,6 +420,8 @@ npm run lint
 npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first so Next generates its route types (e.g. LayoutProps)
 ```
 
+**What you should see (Phase 6):** next to the board there's a small zoom box (`+`, the current zoom, `−`). Scroll over the board to zoom toward the cursor; at more than 1× drag empty space to pan; click the zoom value to reset. With the real library empty, the game looks the same as Phase 5 otherwise. To try big and tiny items: `npm run materials:mock`, set `NEXT_PUBLIC_MOCK_ITEMS=1` in `.env.local`, restart `npm run dev` (it runs offline while that flag is on).
+
 **What you should see (Phase 5):** the Figma "00 — Daily Intro" screen first ("Today's Stack", 10 materials, Start Building). After a run, "04 — Results" with the score cards, the percentile, the leaderboard and a name box. Reloading after playing goes straight to results. In dev, add `?replay=1` to play again.
 - The rest is the "02 — Build Phase" and "03 — Testing Phase" screens at 1440×900:
 - After the height is shown (2s), the screen becomes "03 — Testing Phase": a disaster chip, `Surviving: mm:ss`, and the Stability meter where the tray was.
@@ -394,6 +448,8 @@ npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first 
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Phase 5 (optional) | same page (anon/public key) | `.env.local` + Vercel project env vars |
 | `SERPAPI_API_KEY` | Phase 6 (offline script only) | serpapi.com → Dashboard | the local `.env.local` of whoever runs the script. **Not** on Vercel |
 | `GEMINI_API_KEY` | Phase 6 (offline script only) | aistudio.google.com → Get API key | the local `.env.local` of whoever runs the script. **Not** on Vercel |
+| `GEMINI_MODEL` | optional | any Gemini model id | `.env.local`. Default `gemini-3.1-flash-lite` (cheapest). Changing it makes cached estimates stale, so the next run pays again |
+| `NEXT_PUBLIC_MOCK_ITEMS` | optional, dev only | set to `1` | `.env.local`. Adds the FAKE items and forces offline mode. Ignored in production |
 
 The SerpAPI and Gemini keys must never get a `NEXT_PUBLIC_` prefix and must never be imported from `src/`, because the deployed game must not call those APIs.
 
@@ -424,9 +480,9 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [ ] Numeric mass/size/friction for the 3 prototype shapes (§3.1). Placeholders in `materials.ts`
   - [ ] Breaking/health system and structural-reinforcement bonus (§3.5). Stretch goal
 - **Materials library**
-  - [ ] Initial size of the generated library (§3.4). 15–20 items is enough for a demo
+  - [x] ~~Initial size of the generated library (§3.4)~~ **20 items** generated (canary of 1, then 19, picked across the size range). Candidates left in `candidates.json`: 20 more.
   - [ ] Static file vs Supabase table (§3.4). Currently a static file (`items.generated.json`), the hackathon default
-  - [ ] Source/rotation of the candidate object-name list (§3.4)
+  - [x] ~~Source/rotation of the candidate object-name list (§3.4)~~ **Hand-written** `candidates.json` (40 names across sizes), editable, plus `--only "name"` for one-offs. No SerpAPI searches are spent finding names.
 - **Scoring**
   - [ ] Stability-score curve: linear vs stepped vs intensity-weighted (§5.2)
   - [ ] Exact height + stability combination formula (§5.3)
@@ -459,6 +515,18 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [ ] The build timer pauses while the tab is hidden, since it shares the physics clock. Decide whether a daily competitive run needs wall-clock time instead.
   - [x] ~~"Done building" button~~ Added as **Start Early** in the build top bar (not in Figma; styled like the Primary / Disabled Button). It calls `endBuild()` and is disabled until at least one piece is placed.
   - [ ] Height counts every placed piece still on the board, including one dangling off the platform edge. Revisit along with §4.7 / §4.8.
+- **Raised during Phase 6**
+  - [x] **Size spread: accepted as-is (decided 2026-10-25).** Pure real proportions stay, with no per-day size cap. Measured on 40 days (2026-11-01 onward) with the 20 real items + 3 basic shapes (dev preview: `?date=YYYY-MM-DD`), so the trade-off is on record:
+    - **No day has a piece wider than the platform** (widest 180px vs 220px), so the elephant fear was unfounded.
+    - **But the smallest piece is under 8px on 37 of 40 days, and down to 1.7px** (a tennis ball in a day with a giraffe and an elephant). The median size spread within a day is 37× (max 77×).
+    - A 2–3px body is invisible, can't be grabbed, and is unreliable in Matter (tunnelling). Zoom (max 4×) turns 1.7px into 7px, still too small.
+    - **If it's revisited:** (a) cap each day's size spread (e.g. ≤ 12×, chosen deterministically by the seed; needs a library with enough mid-size items); (b) set a minimum piece size (breaks strict proportions for small items only); (c) drop the smallest candidates from the library; (d) raise max zoom to 8×.
+  - [ ] **Mass compression** (`2 × (area × density / 3.24)^0.35`, clamped 0.4–12) and the friction mapping are guesses. 9 of the 20 items sit at the 0.4 mass floor, so small items all weigh the same. They're free to retune: edit `LIMITS` in `convert.mjs`, then `npm run materials:rebuild`.
+  - [x] ~~The Gemini request shape is unconfirmed~~ **Confirmed by the real canary** (2026-10-25): `response_mime_type`, `response_schema` and `inline_data` work. Each item costs about 1,270 input + 80 output tokens.
+  - [x] **`gemini-2.5-flash-lite` is no longer available to new API users** (404). The default is now `gemini-3.1-flash-lite` ($0.25 / $1.50 per 1M tokens). The pricing page listed 2.5 as available; the canary caught it.
+  - [ ] **Gemini returned an intermittent 403** ("caller does not have permission") twice in ~21 requests; the identical request worked on retry. The pipeline now retries a Gemini 403 once after 15s, then stops. If it becomes frequent, check the API key's restrictions in Google AI Studio.
+  - [ ] **Sponsor track (§9.2)** still needs confirming with the organizers that an offline pipeline counts.
+  - [ ] Tray icons are the physics outline (no art). Fine for flat minimalist; revisit if generated shapes look too abstract.
 - **Raised during Phase 4**
   - [ ] **Disaster strength.** A bare 4-square column (7.2 m, Mound) collapses in about 4s (meteor), 10s (wind, earthquake) and 17s (flood). That's harsh on a naive tower; playtest with real builds before tuning. A flat pile with nothing elevated survives the full 75s (stability 5.0), which may be too generous.
   - [ ] The Stability meter shows the **share of the tower still standing**, as in Figma ("Stability: 68%" mid-test). The **stability score** is survival time (§5.2). Same word, two meanings: consider renaming one.
@@ -478,6 +546,48 @@ Newest first. One entry per work session: **date · who · phase · what changed
 - Decisions:
 - Next / blockers:
 -->
+
+### 2026-10-24 · Joshua (+ Claude Code) · Phase 6
+- **Changed**
+  - **Pipeline** in `scripts/materials/` (plain Node, no new dependencies): SerpAPI + Gemini clients, a pure converter, a deterministic mock, a CLI with plan / run / rebuild / mock modes, a validator and 11 unit tests. Details in §3.4.
+  - **Cost safety is the main design:**
+    - Plan by default, and a real run needs `--limit`.
+    - Every API answer is cached on disk, so nothing is paid for twice.
+    - Any error stops the run.
+    - A call ledger with a cost estimate.
+    - A mock mode that writes to a separate file.
+  - **Zoom:** `BoardView` camera, wheel / buttons / pan, wired through `BoardCanvas` and `BuildPhase`.
+  - `materials.ts` and `client.ts`: `NEXT_PUBLIC_MOCK_ITEMS` adds the fake items and forces offline mode (dev only).
+  - `.gitignore`, `.env.example`, npm scripts.
+- **Decisions**
+  - Both APIs per item (1 search + 1 estimate).
+  - The library is append-only and permanent; the same object can come up on many days.
+  - Pure real-world proportions, with zoom instead of capping sizes.
+  - Hand-written candidate names.
+  - The default model is the cheapest listed one.
+  - Caches are committed (except photos); the ledger is too.
+- **Verified**
+  - **Without spending any credit:**
+    - Unit tests: 11 pass.
+    - `materials:plan`: 40 candidates, correct counts, no network.
+    - `--run` without `--limit`, and `--limit 26`: both refused.
+    - Missing keys: nothing spent.
+    - `--dry-run`: prints the exact request and writes nothing.
+    - **Bogus keys:** the run stopped at the first rejected call, items 2 and 3 were never attempted, nothing was cached, and the key appeared nowhere in output or files.
+    - Mock: 20 fake items, byte-identical on rerun, a 19× size spread, valid; the real library and ledger untouched.
+  - **Zoom** (headless Chrome, real mouse and wheel, with mock items on a throwaway dev server): 13/13 checks.
+    - Wheel zoom keeps the point under the cursor fixed.
+    - A drop at 2.25× lands exactly under the cursor, and a pick-up works where the piece appears on screen.
+    - Panning works and zoom clamps at 4×.
+    - The mock day's set (5px to 104px pieces) totals 468px, as designed.
+  - **Regression on the real dev server:** 1× drags, rotation, no panning at 1×, pick-up and return to the tray, and the full flow to results.
+  - tsc, lint and the production build pass.
+- **Real run (after the keys were added):**
+  - **Canary** (1 item = 2 calls): the first attempt got a 404 because `gemini-2.5-flash-lite` is no longer available to new users. Fail-fast worked: only the SerpAPI search was spent, and it's cached. Switched the default to `gemini-3.1-flash-lite` and the retry worked, which also confirmed the request shape.
+  - **Batch of 19**, picked across the size range: stopped twice on a transient Gemini 403 (nothing lost, the cache made the retry free). The pipeline now retries a Gemini 403 once, and the final 13 ran clean.
+  - **Total:** 20 SerpAPI + 20 Gemini calls, about 27k tokens, about $0.009. `materials:check` passes with 20 real items. No key value appears in any project file, and the photos are git-ignored.
+- **Added at the end:** a dev-only `?date=YYYY-MM-DD` preview (generates that day's puzzle locally, practice mode, no database access), used to scan 40 days for fit problems. Findings are in §8.
+- **Next / blockers:** none for Phase 6. The size-spread trade-off was reviewed and accepted by Joshua (§8).
 
 ### 2026-10-24 · Joshua (+ Claude Code) · Phase 5
 - **Changed**

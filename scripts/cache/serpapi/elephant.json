@@ -1,0 +1,10 @@
+{
+  "query": "elephant",
+  "picked": {
+    "title": "Elephant - Wikipedia",
+    "source": "Wikipedia",
+    "link": "https://en.wikipedia.org/wiki/Elephant",
+    "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTkSzVbXR_4SfjkKak1g8hzyXwNl_o5bLiIBocRQc_RYQ&s=10"
+  },
+  "imageMime": "image/jpeg"
+}

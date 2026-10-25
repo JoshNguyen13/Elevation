@@ -146,6 +146,52 @@
   gap: 16px;
 }
 
+/* Zoom controls sit just right of the board, out of the layout flow. */
+.boardWrap {
+  position: relative;
+}
+
+.zoomControls {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 12px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-button);
+  background: var(--color-fill-muted);
+}
+
+.zoomButton,
+.zoomLevel {
+  width: 40px;
+  height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.zoomLevel {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.zoomLevel:disabled {
+  cursor: default;
+}
+
+.zoomButton:hover,
+.zoomLevel:not(:disabled):hover {
+  background: var(--color-background);
+}
+
 .hint {
   min-height: 2lh;
   font-size: 12px;

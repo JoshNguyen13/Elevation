@@ -1,0 +1,19 @@
+{
+  "name": "bicycle",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1261,
+    "outputTokens": 77
+  },
+  "estimate": {
+    "width_m": 1.75,
+    "height_m": 1.1,
+    "archetype": "irregular",
+    "taper": 0.8,
+    "density_kg_per_l": 0.15,
+    "surface_roughness": 0.6
+  }
+}

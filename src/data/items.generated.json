@@ -1,1 +1,387 @@
-[]
+[
+  {
+    "id": "traffic-cone",
+    "name": "traffic cone",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -0.026,
+          "y": 0
+        },
+        {
+          "x": 0.026,
+          "y": 0
+        },
+        {
+          "x": 0.175,
+          "y": 0.7
+        },
+        {
+          "x": -0.175,
+          "y": 0.7
+        }
+      ]
+    },
+    "mass": 0.4,
+    "friction": 1.18,
+    "archetype": "tall-narrow"
+  },
+  {
+    "id": "ketchup-bottle",
+    "name": "ketchup bottle",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -0.024,
+          "y": 0
+        },
+        {
+          "x": 0.024,
+          "y": 0
+        },
+        {
+          "x": 0.06,
+          "y": 0.25
+        },
+        {
+          "x": -0.06,
+          "y": 0.25
+        }
+      ]
+    },
+    "mass": 0.4,
+    "friction": 0.94,
+    "archetype": "wide-stable"
+  },
+  {
+    "id": "soda-can",
+    "name": "soda can",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.066,
+      "height": 0.122
+    },
+    "mass": 0.4,
+    "friction": 0.94,
+    "archetype": "tall-narrow"
+  },
+  {
+    "id": "brick",
+    "name": "brick",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.215,
+      "height": 0.065
+    },
+    "mass": 0.4,
+    "friction": 1.18,
+    "archetype": "wide-stable"
+  },
+  {
+    "id": "hardcover-book",
+    "name": "hardcover book",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.16,
+      "height": 0.03
+    },
+    "mass": 0.4,
+    "friction": 0.94,
+    "archetype": "flat-wide"
+  },
+  {
+    "id": "tennis-ball",
+    "name": "tennis ball",
+    "source": "generated",
+    "shape": {
+      "kind": "circle",
+      "radius": 0.034
+    },
+    "mass": 0.4,
+    "friction": 1.26,
+    "archetype": "round"
+  },
+  {
+    "id": "pizza-box",
+    "name": "pizza box",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.4,
+      "height": 0.05
+    },
+    "mass": 0.4,
+    "friction": 1.02,
+    "archetype": "flat-wide"
+  },
+  {
+    "id": "fire-hydrant",
+    "name": "fire hydrant",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -0.15,
+          "y": 0
+        },
+        {
+          "x": 0.15,
+          "y": 0
+        },
+        {
+          "x": 0.25,
+          "y": 0.9
+        },
+        {
+          "x": -0.25,
+          "y": 0.9
+        }
+      ]
+    },
+    "mass": 1.068,
+    "friction": 1.02,
+    "archetype": "tall-narrow"
+  },
+  {
+    "id": "soccer-ball",
+    "name": "soccer ball",
+    "source": "generated",
+    "shape": {
+      "kind": "circle",
+      "radius": 0.11
+    },
+    "mass": 0.4,
+    "friction": 1.02,
+    "archetype": "round"
+  },
+  {
+    "id": "watermelon",
+    "name": "watermelon",
+    "source": "generated",
+    "shape": {
+      "kind": "circle",
+      "radius": 0.113
+    },
+    "mass": 0.421,
+    "friction": 0.94,
+    "archetype": "round"
+  },
+  {
+    "id": "bucket",
+    "name": "bucket",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.3,
+      "height": 0.4
+    },
+    "mass": 0.4,
+    "friction": 0.94,
+    "archetype": "tall-narrow"
+  },
+  {
+    "id": "microwave-oven",
+    "name": "microwave oven",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.5,
+      "height": 0.3
+    },
+    "mass": 0.472,
+    "friction": 1.02,
+    "archetype": "wide-stable"
+  },
+  {
+    "id": "office-chair",
+    "name": "office chair",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -0.26,
+          "y": 0
+        },
+        {
+          "x": 0.26,
+          "y": 0
+        },
+        {
+          "x": 0.325,
+          "y": 1.1
+        },
+        {
+          "x": -0.325,
+          "y": 1.1
+        }
+      ]
+    },
+    "mass": 0.585,
+    "friction": 1.02,
+    "archetype": "irregular"
+  },
+  {
+    "id": "car-tire",
+    "name": "car tire",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.65,
+      "height": 0.2
+    },
+    "mass": 0.491,
+    "friction": 1.42,
+    "archetype": "flat-wide"
+  },
+  {
+    "id": "couch",
+    "name": "couch",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 2.8,
+      "height": 0.9
+    },
+    "mass": 0.943,
+    "friction": 1.26,
+    "archetype": "wide-stable"
+  },
+  {
+    "id": "refrigerator",
+    "name": "refrigerator",
+    "source": "generated",
+    "shape": {
+      "kind": "box",
+      "width": 0.9,
+      "height": 1.75
+    },
+    "mass": 0.956,
+    "friction": 0.86,
+    "archetype": "tall-narrow"
+  },
+  {
+    "id": "bicycle",
+    "name": "bicycle",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -0.7,
+          "y": 0
+        },
+        {
+          "x": 0.7,
+          "y": 0
+        },
+        {
+          "x": 0.875,
+          "y": 1.1
+        },
+        {
+          "x": -0.875,
+          "y": 1.1
+        }
+      ]
+    },
+    "mass": 0.827,
+    "friction": 1.18,
+    "archetype": "irregular"
+  },
+  {
+    "id": "piano",
+    "name": "piano",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -0.6,
+          "y": 0
+        },
+        {
+          "x": 0.6,
+          "y": 0
+        },
+        {
+          "x": 0.75,
+          "y": 1
+        },
+        {
+          "x": -0.75,
+          "y": 1
+        }
+      ]
+    },
+    "mass": 1.019,
+    "friction": 0.86,
+    "archetype": "irregular"
+  },
+  {
+    "id": "elephant",
+    "name": "elephant",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -1.4,
+          "y": 0
+        },
+        {
+          "x": 1.4,
+          "y": 0
+        },
+        {
+          "x": 1.75,
+          "y": 3
+        },
+        {
+          "x": -1.75,
+          "y": 3
+        }
+      ]
+    },
+    "mass": 2.857,
+    "friction": 1.18,
+    "archetype": "wide-stable"
+  },
+  {
+    "id": "giraffe",
+    "name": "giraffe",
+    "source": "generated",
+    "shape": {
+      "kind": "convex",
+      "vertices": [
+        {
+          "x": -0.375,
+          "y": 0
+        },
+        {
+          "x": 0.375,
+          "y": 0
+        },
+        {
+          "x": 1.25,
+          "y": 5
+        },
+        {
+          "x": -1.25,
+          "y": 5
+        }
+      ]
+    },
+    "mass": 2.71,
+    "friction": 1.18,
+    "archetype": "tall-narrow"
+  }
+]

@@ -10,7 +10,7 @@ import {
   submitScore,
 } from "@/lib/daily/api";
 import { addDays, utcDateString } from "@/lib/daily/date";
-import type { DailyPuzzle } from "@/lib/daily/puzzle";
+import { generatePuzzle, type DailyPuzzle } from "@/lib/daily/puzzle";
 import { runFromScoreRow, type RunSummary } from "@/lib/daily/run";
 import { getDeviceId, getLocalDisplayName, loadSavedRun, saveRun, setLocalDisplayName } from "@/lib/daily/storage";
 import { DISASTER_TYPES } from "@/lib/physics/disasters";
@@ -30,21 +30,25 @@ interface Loaded {
   playedYesterday: number | null;
 }
 
-// Dev-only switches: ?replay=1 runs unsubmitted practice rounds, ?disaster=flood forces the disaster.
+// Dev-only switches: ?replay=1 runs unsubmitted practice rounds, ?disaster=flood forces the
+// disaster, ?date=2026-11-03 previews that day's puzzle (practice only, generated locally, so
+// nothing is read from or written to the shared database for that date).
 function devOverrides() {
-  if (process.env.NODE_ENV === "production") return { practice: false, disaster: null };
+  if (process.env.NODE_ENV === "production") return { practice: false, disaster: null, date: null };
   const params = new URLSearchParams(window.location.search);
   const disaster = DISASTER_TYPES.find((d) => d === params.get("disaster")) ?? null;
-  return { practice: params.has("replay"), disaster };
+  const dateParam = params.get("date");
+  const date = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null;
+  return { practice: params.has("replay") || date !== null, disaster, date };
 }
 
 async function load(): Promise<Loaded> {
-  const date = utcDateString();
-  const { practice, disaster } = devOverrides();
+  const { practice, disaster, date: previewDate } = devOverrides();
+  const date = previewDate ?? utcDateString();
   const deviceId = getDeviceId();
 
   const [fetched, serverName, playedYesterday] = await Promise.all([
-    loadPuzzle(date),
+    previewDate ? generatePuzzle(date) : loadPuzzle(date),
     practice ? null : ensurePlayer(deviceId),
     fetchPlayedCount(addDays(date, -1)),
   ]);

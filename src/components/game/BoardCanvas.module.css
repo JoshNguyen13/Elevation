@@ -3,13 +3,20 @@
   flex-shrink: 0;
   width: 400px;
   height: 560px;
-  /* Invisible at rest like the Figma Build Area; outlines the drop zone while dragging. */
-  outline: 1px dashed transparent;
-  outline-offset: 2px;
+  /* Marks the board's frame (the zoom area). An outline, not a border: a border would
+     add to the canvas box and offset the pointer-to-board mapping. */
+  outline: 2px solid var(--color-tick);
+  outline-offset: 0;
   touch-action: none;
   transition: outline-color 120ms ease;
 }
 
+/* Zoomed in: the frame darkens so it's clear you're looking at part of the board. */
+.canvas[data-zoomed] {
+  outline-color: var(--color-ink);
+}
+
+/* Holding a piece: the drop zone lights up. */
 .canvas[data-dragging] {
-  outline-color: var(--color-border);
+  outline-color: var(--color-accent);
 }

@@ -1,0 +1,19 @@
+{
+  "name": "watermelon",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1288,
+    "outputTokens": 77
+  },
+  "estimate": {
+    "width_m": 0.25,
+    "height_m": 0.2,
+    "archetype": "round",
+    "taper": 0.8,
+    "density_kg_per_l": 0.95,
+    "surface_roughness": 0.3
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "tennis ball",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1289,
+    "outputTokens": 78
+  },
+  "estimate": {
+    "width_m": 0.067,
+    "height_m": 0.067,
+    "archetype": "round",
+    "taper": 1,
+    "density_kg_per_l": 0.15,
+    "surface_roughness": 0.7
+  }
+}

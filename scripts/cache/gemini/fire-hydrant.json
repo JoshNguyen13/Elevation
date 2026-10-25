@@ -1,0 +1,19 @@
+{
+  "name": "fire hydrant",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1238,
+    "outputTokens": 77
+  },
+  "estimate": {
+    "width_m": 0.5,
+    "height_m": 0.9,
+    "archetype": "tall-narrow",
+    "taper": 0.6,
+    "density_kg_per_l": 1.5,
+    "surface_roughness": 0.4
+  }
+}

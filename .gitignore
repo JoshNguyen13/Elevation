@@ -34,6 +34,11 @@ yarn-error.log*
 .env*
 !.env.example
 
+# materials pipeline: reference photos from SerpAPI are not ours to commit.
+# (scripts/cache/serpapi, gemini and ledger.jsonl ARE committed, so teammates never pay twice.)
+/scripts/cache/images/
+*.tmp
+
 # vercel
 .vercel
 

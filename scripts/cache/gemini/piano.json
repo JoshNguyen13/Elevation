@@ -1,0 +1,19 @@
+{
+  "name": "piano",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1261,
+    "outputTokens": 76
+  },
+  "estimate": {
+    "width_m": 1.5,
+    "height_m": 1,
+    "archetype": "irregular",
+    "taper": 0.8,
+    "density_kg_per_l": 0.35,
+    "surface_roughness": 0.2
+  }
+}

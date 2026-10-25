@@ -1,0 +1,19 @@
+{
+  "name": "ketchup bottle",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1272,
+    "outputTokens": 79
+  },
+  "estimate": {
+    "width_m": 0.12,
+    "height_m": 0.25,
+    "archetype": "wide-stable",
+    "taper": 0.4,
+    "density_kg_per_l": 1.1,
+    "surface_roughness": 0.3
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "query": "bicycle",
+  "picked": {
+    "title": "Bicycle - Wikipedia",
+    "source": "Wikipedia",
+    "link": "https://en.wikipedia.org/wiki/Bicycle",
+    "thumbnail": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR4rq5D7r6064kIugNn0mHTrA0AzEMCFxHRIRnRfNvNAQ&s=10"
+  },
+  "imageMime": "image/jpeg"
+}

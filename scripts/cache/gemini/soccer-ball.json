@@ -1,0 +1,19 @@
+{
+  "name": "soccer ball",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1262,
+    "outputTokens": 76
+  },
+  "estimate": {
+    "width_m": 0.22,
+    "height_m": 0.22,
+    "archetype": "round",
+    "taper": 1,
+    "density_kg_per_l": 0.15,
+    "surface_roughness": 0.4
+  }
+}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 import { BOARD_WIDTH_PX } from "@/lib/game/board";
+import { BoardView } from "@/lib/game/boardView";
 import { BuildSession, SIM_SPEEDS, type BuildSnapshot, type Held } from "@/lib/game/buildSession";
 import { boundsOf, transformOutline, type Vec } from "@/lib/game/geometry";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
@@ -60,21 +61,43 @@ export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhas
     onComplete(run);
   }, [phase, snapshot, puzzle.date, onComplete]);
 
-  // Console / test hook: window.__elevation.debugPieces()
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "production") Object.assign(window, { __elevation: session });
-  }, [session]);
+  // Zoom / pan camera. View only: the session and physics always work in board px.
+  const [view] = useState(() => new BoardView());
+  const { zoom } = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
 
-  // Client px → board px, or null when the point is off the board.
-  const toBoard = useCallback((clientX: number, clientY: number): Vec | null => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return null;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
-    if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
-    const scale = BOARD_WIDTH_PX / rect.width;
-    return { x: x * scale, y: y * scale };
-  }, []);
+  // Console / test hook: window.__elevation.debugPieces(), window.__view
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "production") Object.assign(window, { __elevation: session, __view: view });
+  }, [session, view]);
+
+  // Client px → board px (through the zoom), or null when the point is off the canvas.
+  const toBoard = useCallback(
+    (clientX: number, clientY: number): Vec | null => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return null;
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+      return view.toBoard(clientX, clientY, rect);
+    },
+    [view],
+  );
+
+  // Mouse wheel zooms toward the cursor. Native listener: React's onWheel is passive.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const point = toBoard(e.clientX, e.clientY);
+      if (point) view.zoomAt(point, Math.exp(-e.deltaY * 0.002));
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [toBoard, view]);
+
+  // Dragging empty board space pans the zoomed view.
+  const panFrom = useRef<Vec | null>(null);
 
   // While a piece is held, follow the pointer anywhere on the page.
   const isHolding = held !== null;
@@ -117,13 +140,32 @@ export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhas
 
   const pickUpFromBoard = (e: PointerEvent<HTMLCanvasElement>) => {
     const point = toBoard(e.clientX, e.clientY);
-    if (point && session.pickUpAt(point, { x: e.clientX, y: e.clientY })) e.preventDefault();
+    if (point && session.pickUpAt(point, { x: e.clientX, y: e.clientY })) {
+      e.preventDefault();
+    } else if (view.zoom > 1) {
+      panFrom.current = { x: e.clientX, y: e.clientY };
+      e.currentTarget.setPointerCapture(e.pointerId);
+      e.currentTarget.style.cursor = "grabbing";
+    }
   };
 
-  const updateHoverCursor = (e: PointerEvent<HTMLCanvasElement>) => {
+  const onBoardPointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (panFrom.current) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const k = BOARD_WIDTH_PX / rect.width / view.zoom;
+      view.panBy(-(e.clientX - panFrom.current.x) * k, -(e.clientY - panFrom.current.y) * k);
+      panFrom.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
     if (isHolding) return;
     const point = toBoard(e.clientX, e.clientY);
-    e.currentTarget.style.cursor = point && session.pieceAt(point) ? "grab" : "";
+    e.currentTarget.style.cursor = point && session.pieceAt(point) ? "grab" : view.zoom > 1 ? "move" : "";
+  };
+
+  const endPan = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (!panFrom.current) return;
+    panFrom.current = null;
+    e.currentTarget.style.cursor = "";
   };
 
   const piecesLeft = pieces.filter((p) => p.status === "tray" || p.status === "held").length;
@@ -186,13 +228,35 @@ export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhas
       <div className={styles.buildArea}>
         <HeightRuler activeBand={result?.band} />
         <div className={styles.play}>
-          <BoardCanvas
-            canvasRef={canvasRef}
-            session={session}
-            isDragging={isHolding}
-            onPointerDown={pickUpFromBoard}
-            onPointerMove={updateHoverCursor}
-          />
+          <div className={styles.boardWrap}>
+            <BoardCanvas
+              canvasRef={canvasRef}
+              session={session}
+              view={view}
+              zoomed={zoom > 1}
+              isDragging={isHolding}
+              onPointerDown={pickUpFromBoard}
+              onPointerMove={onBoardPointerMove}
+              onPointerUp={endPan}
+            />
+            <div className={styles.zoomControls} role="group" aria-label="Zoom">
+              <button type="button" className={styles.zoomButton} aria-label="Zoom in" onClick={() => view.zoomBy(1.5)}>
+                +
+              </button>
+              <button
+                type="button"
+                className={styles.zoomLevel}
+                aria-label="Reset zoom"
+                disabled={zoom === 1}
+                onClick={() => view.reset()}
+              >
+                {zoom.toFixed(1)}x
+              </button>
+              <button type="button" className={styles.zoomButton} aria-label="Zoom out" onClick={() => view.zoomBy(1 / 1.5)}>
+                −
+              </button>
+            </div>
+          </div>
           {/* Always rendered (empty while testing) so the board never shifts. */}
           <p className={styles.hint}>
             {phase === "build" ? (
@@ -243,14 +307,15 @@ export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhas
 
       {/* Off the board, the held piece follows the pointer at true scale. On the board, the canvas draws it. */}
       {held && heldMaterialId && !held.pointerBoard && (
-        <HeldGhost held={held} local={session.outline(heldMaterialId)} />
+        <HeldGhost held={held} local={session.outline(heldMaterialId)} zoom={zoom} />
       )}
     </div>
   );
 }
 
-function HeldGhost({ held, local }: { held: Held; local: Vec[] }) {
-  const outline = transformOutline(local, 0, 0, held.angle);
+// The off-board drag ghost, at the size the piece will have on the (zoomed) board.
+function HeldGhost({ held, local, zoom }: { held: Held; local: Vec[]; zoom: number }) {
+  const outline = transformOutline(local, 0, 0, held.angle).map((v) => ({ x: v.x * zoom, y: v.y * zoom }));
   const b = boundsOf(outline);
   return (
     <PieceSvg
@@ -258,8 +323,8 @@ function HeldGhost({ held, local }: { held: Held; local: Vec[] }) {
       fill={colors.ink}
       className={styles.ghost}
       style={{
-        left: held.pointerClient.x + held.grab.x + b.minX,
-        top: held.pointerClient.y + held.grab.y + b.minY,
+        left: held.pointerClient.x + held.grab.x * zoom + b.minX,
+        top: held.pointerClient.y + held.grab.y * zoom + b.minY,
       }}
     />
   );

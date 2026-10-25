@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "materials:plan": "node --env-file-if-exists=.env.local scripts/materials/generate.mjs",
+    "materials:run": "node --env-file-if-exists=.env.local scripts/materials/generate.mjs --run",
+    "materials:rebuild": "node scripts/materials/generate.mjs --rebuild",
+    "materials:mock": "node scripts/materials/generate.mjs --mock",
+    "materials:check": "node scripts/materials/check.mjs",
+    "materials:test": "node --test scripts/materials/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

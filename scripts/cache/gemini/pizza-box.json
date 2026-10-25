@@ -1,0 +1,19 @@
+{
+  "name": "pizza box",
+  "model": "gemini-3.1-flash-lite",
+  "promptVersion": 1,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1270,
+    "outputTokens": 79
+  },
+  "estimate": {
+    "width_m": 0.4,
+    "height_m": 0.05,
+    "archetype": "flat-wide",
+    "taper": 1,
+    "density_kg_per_l": 0.15,
+    "surface_roughness": 0.4
+  }
+}
