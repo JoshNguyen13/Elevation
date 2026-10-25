@@ -1,7 +1,7 @@
 // 2D polygon helpers shared by drawing, hit testing and placement checks.
 // Everything here is in board PIXELS (y down, angles clockwise like Matter.js).
 import type { PhysicsShape } from "@/data/materials";
-import { toPx } from "@/lib/physics/constants";
+import { PX_PER_METER } from "@/lib/physics/constants";
 
 export interface Vec {
   x: number;
@@ -42,9 +42,10 @@ function centroid(vertices: Vec[]): Vec {
   return { x: cx / (3 * area), y: cy / (3 * area) };
 }
 
-// The shape's outline at angle 0, centered on its centroid. Phase 2 should build
-// Matter bodies from these same vertices so the drawing and the hitbox agree.
-export function shapeOutline(shape: PhysicsShape): Vec[] {
+// The shape's outline at angle 0, centered on its centroid, in px at the given
+// scale. Matter bodies are built from these same vertices, so drawing and hitbox agree.
+export function shapeOutline(shape: PhysicsShape, pxPerMeter = PX_PER_METER): Vec[] {
+  const toPx = (meters: number) => meters * pxPerMeter;
   switch (shape.kind) {
     case "box": {
       const hw = toPx(shape.width) / 2;
@@ -66,6 +67,15 @@ export function shapeOutline(shape: PhysicsShape): Vec[] {
       return px.map((v) => ({ x: v.x - c.x, y: v.y - c.y }));
     }
   }
+}
+
+// Largest distance between any two vertices: the piece's end-to-end length.
+export function longestDimension(outline: Vec[]): number {
+  let longest = 0;
+  for (const a of outline) {
+    for (const b of outline) longest = Math.max(longest, Math.hypot(a.x - b.x, a.y - b.y));
+  }
+  return longest;
 }
 
 export function transformOutline(outline: Vec[], x: number, y: number, angle: number): Vec[] {

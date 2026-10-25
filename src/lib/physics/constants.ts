@@ -5,7 +5,9 @@
 // (default slop, sleep and velocity thresholds assume ~10–100 unit bodies), so
 // meters are converted to pixels once, when a body is created — see toPx().
 
-export const PX_PER_METER = 40; // TBD §4.2 — sized so Figma pieces (~50–86px) are ~1.5–2m
+// Board layout unit only (canvas, platform). Pieces use a per-day scale instead
+// (src/lib/game/dailyScale.ts) so each day's full set fits the fixed board.
+export const PX_PER_METER = 40; // TBD §4.2
 
 export const toPx = (meters: number) => meters * PX_PER_METER;
 export const toMeters = (px: number) => px / PX_PER_METER;
@@ -33,7 +35,10 @@ export const VELOCITY_ITERATIONS = 8;
 // §3.2 / §4.9 — no material ever bounces.
 export const RESTITUTION = 0;
 
-// Gameplay timing — not used until later phases, kept here so there is one source of truth.
+// §5.1 max possible height (the day's pieces end to end, by longest dimension)
+// fills this fraction of the space above the platform.
+export const HEIGHT_HEADROOM = 0.9;
+
 export const BUILD_DURATION_S = 120; // §2.1
 export const SETTLE_DURATION_S = 1.5; // TBD §4.6
 export const MAX_TEST_DURATION_S = 75; // TBD §4.11 — suggested 60–90s

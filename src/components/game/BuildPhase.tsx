@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
-import { BUILD_DURATION_S } from "@/lib/physics/constants";
 import { BOARD_WIDTH_PX } from "@/lib/game/board";
-import { BuildSession, localOutline, type Held } from "@/lib/game/buildSession";
+import { BuildSession, type BuildSnapshot, type Held } from "@/lib/game/buildSession";
 import { boundsOf, transformOutline, type Vec } from "@/lib/game/geometry";
 import { colors } from "@/lib/theme";
 import BoardCanvas from "./BoardCanvas";
@@ -15,11 +14,19 @@ import styles from "./BuildPhase.module.css";
 const formatClock = (seconds: number) =>
   `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
+function statusText({ phase, secondsLeft, result }: BuildSnapshot) {
+  if (phase === "build") return `Build Time: ${formatClock(secondsLeft)}`;
+  if (phase === "settling" || !result) return "Settling…";
+  return `Height: ${result.heightM.toFixed(1)} m · ${result.band}`;
+}
+
 // 02 — Build Phase (Figma): drag from the tray, Q/E to rotate, pieces fall under
-// the freeze-on-placement rule (§4.3). The BuildSession owns the rules and physics.
+// the freeze-on-placement rule (§4.3). When the timer ends the tower settles and
+// its height is measured (§4.6, §5.1). The BuildSession owns the rules and physics.
 export default function BuildPhase() {
   const [session] = useState(() => new BuildSession());
-  const { pieces, held } = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  const { pieces, held, phase, result } = snapshot;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Console / test hook: window.__elevation.debugPieces()
@@ -88,20 +95,20 @@ export default function BuildPhase() {
     e.currentTarget.style.cursor = point && session.pieceAt(point) ? "grab" : "";
   };
 
-  const piecesLeft = pieces.filter((p) => p.status !== "placed").length;
+  const piecesLeft = pieces.filter((p) => p.status === "tray" || p.status === "held").length;
   const heldMaterialId = held && pieces.find((p) => p.uid === held.uid)!.materialId;
 
   return (
     <div className={styles.screen} data-holding={isHolding ? "" : undefined}>
       <header className={styles.topBar}>
-        <p className={styles.timer}>Build Time: {formatClock(BUILD_DURATION_S)}</p>
+        <p className={styles.timer}>{statusText(snapshot)}</p>
         <p className={styles.piecesLeft}>
           Pieces Left: {piecesLeft} / {pieces.length}
         </p>
       </header>
 
       <div className={styles.buildArea}>
-        <HeightRuler />
+        <HeightRuler activeBand={result?.band} />
         <div className={styles.play}>
           <BoardCanvas
             canvasRef={canvasRef}
@@ -110,24 +117,39 @@ export default function BuildPhase() {
             onPointerDown={pickUpFromBoard}
             onPointerMove={updateHoverCursor}
           />
-          <p className={styles.hint}>
-            Drag a piece onto the platform. The newest piece won&apos;t fall
-            <br />
-            until you place the next one. Q / E to rotate.
-          </p>
+          {phase === "build" ? (
+            <p className={styles.hint}>
+              Drag a piece onto the platform. The newest piece won&apos;t fall
+              <br />
+              until you place the next one. Q / E to rotate.
+            </p>
+          ) : (
+            <p className={styles.hint}>
+              Time&apos;s up. Your tower is settling
+              <br />
+              and its height is the official one.
+            </p>
+          )}
         </div>
       </div>
 
-      <PieceTray pieces={pieces} onPickUp={pickUpFromTray} />
+      <PieceTray
+        pieces={pieces}
+        outline={(materialId) => session.outline(materialId)}
+        enabled={phase === "build"}
+        onPickUp={pickUpFromTray}
+      />
 
       {/* Off the board, the held piece follows the pointer at true scale. On the board, the canvas draws it. */}
-      {held && heldMaterialId && !held.pointerBoard && <HeldGhost held={held} materialId={heldMaterialId} />}
+      {held && heldMaterialId && !held.pointerBoard && (
+        <HeldGhost held={held} local={session.outline(heldMaterialId)} />
+      )}
     </div>
   );
 }
 
-function HeldGhost({ held, materialId }: { held: Held; materialId: string }) {
-  const outline = transformOutline(localOutline(materialId), 0, 0, held.angle);
+function HeldGhost({ held, local }: { held: Held; local: Vec[] }) {
+  const outline = transformOutline(local, 0, 0, held.angle);
   const b = boundsOf(outline);
   return (
     <PieceSvg

@@ -47,8 +47,12 @@ function drawPiece(ctx: CanvasRenderingContext2D, { outline, look }: DrawnPiece)
   ctx.globalAlpha = 1;
 }
 
-// Expects the context already scaled for devicePixelRatio.
-export function drawBoard(ctx: CanvasRenderingContext2D, pieces: DrawnPiece[]) {
+// Expects the context already scaled for devicePixelRatio. heightLineY marks the measured height.
+export function drawBoard(
+  ctx: CanvasRenderingContext2D,
+  pieces: DrawnPiece[],
+  heightLineY: number | null = null,
+) {
   ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, BOARD_WIDTH_PX, BOARD_HEIGHT_PX);
 
@@ -59,4 +63,15 @@ export function drawBoard(ctx: CanvasRenderingContext2D, pieces: DrawnPiece[]) {
   ctx.fill();
 
   pieces.forEach((piece) => drawPiece(ctx, piece));
+
+  if (heightLineY !== null) {
+    ctx.beginPath();
+    ctx.moveTo(0, heightLineY);
+    ctx.lineTo(BOARD_WIDTH_PX, heightLineY);
+    ctx.setLineDash([6, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = colors.accent;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 }

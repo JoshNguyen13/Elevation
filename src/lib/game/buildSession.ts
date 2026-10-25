@@ -2,15 +2,19 @@
 // rules for picking up, dropping and rotating them. Placed pieces are Matter.js
 // bodies (PhysicsWorld), which own their positions. React subscribes to the
 // snapshot (useSyncExternalStore) and the canvas draws from drawables() each frame.
+// When the build timer ends, everything unfreezes, settles, and the height is measured (§4.6, §5.1).
 import { getMaterial } from "@/data/materials";
 import {
+  BUILD_DURATION_S,
   DAILY_PIECE_COUNT,
   MAX_FRAME_MS,
   PHYSICS_STEP_MS,
   ROTATION_STEP_DEG,
+  SETTLE_DURATION_S,
 } from "@/lib/physics/constants";
 import { PhysicsWorld, type Pose } from "@/lib/physics/world";
-import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE } from "./board";
+import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE, PLATFORM_RECT } from "./board";
+import { MAX_STACK_PX, pieceScale } from "./dailyScale";
 import type { DrawnPiece } from "./draw";
 import {
   boundsOf,
@@ -20,8 +24,13 @@ import {
   transformOutline,
   type Vec,
 } from "./geometry";
+import { bandFor, type HeightResult } from "./scoring";
 
-export type PieceStatus = "tray" | "held" | "placed";
+// "lost": fell off the board after the build ended, so it's gone for good.
+export type PieceStatus = "tray" | "held" | "placed" | "lost";
+
+// build → (timer hits 0) → settling → (SETTLE_DURATION_S) → measured
+export type Phase = "build" | "settling" | "measured";
 
 export interface Piece {
   uid: string;
@@ -54,6 +63,11 @@ export interface BuildSnapshot {
   held: Held | null;
   // The newest placed piece: static until the next placement (§4.3).
   frozenUid: string | null;
+  phase: Phase;
+  // Build time left, whole seconds rounded up.
+  secondsLeft: number;
+  // The official height, once measured.
+  result: HeightResult | null;
 }
 
 const ROTATION_STEP_RAD = (ROTATION_STEP_DEG * Math.PI) / 180;
@@ -63,18 +77,6 @@ const PLACEHOLDER_MATERIAL_IDS = Array.from(
   { length: DAILY_PIECE_COUNT },
   (_, i) => ["square", "triangle", "pentagon"][i % 3],
 );
-
-const localOutlines = new Map<string, Vec[]>();
-
-// The material's outline at angle 0, centered on its centroid, in px.
-export function localOutline(materialId: string): Vec[] {
-  let outline = localOutlines.get(materialId);
-  if (!outline) {
-    outline = shapeOutline(getMaterial(materialId).shape);
-    localOutlines.set(materialId, outline);
-  }
-  return outline;
-}
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
@@ -90,15 +92,23 @@ function isOffBoard(outline: Vec[]): boolean {
 
 export class BuildSession {
   private readonly world = new PhysicsWorld();
+  // Board px per real-world meter for today's set (§5.1).
+  readonly pxPerMeter: number;
+  private readonly outlines = new Map<string, Vec[]>();
   private pieces: Piece[];
   private held: Held | null = null;
   private frozenUid: string | null = null;
   private nextSeq = 0;
   private stepBacklogMs = 0;
+  private phase: Phase = "build";
+  private buildMsLeft = BUILD_DURATION_S * 1000;
+  private settleMsLeft = SETTLE_DURATION_S * 1000;
+  private result: HeightResult | null = null;
   private snapshot: BuildSnapshot;
   private readonly listeners = new Set<() => void>();
 
   constructor(materialIds: string[] = PLACEHOLDER_MATERIAL_IDS) {
+    this.pxPerMeter = pieceScale(materialIds);
     this.pieces = materialIds.map((materialId, i) => ({
       uid: `piece-${i}`,
       materialId,
@@ -118,7 +128,14 @@ export class BuildSession {
   getSnapshot = () => this.snapshot;
 
   private createSnapshot(): BuildSnapshot {
-    return { pieces: this.pieces, held: this.held, frozenUid: this.frozenUid };
+    return {
+      pieces: this.pieces,
+      held: this.held,
+      frozenUid: this.frozenUid,
+      phase: this.phase,
+      secondsLeft: Math.ceil(this.buildMsLeft / 1000),
+      result: this.result,
+    };
   }
 
   private emit() {
@@ -138,10 +155,25 @@ export class BuildSession {
     return this.pieces.filter((p) => p.status === "placed");
   }
 
+  private get building() {
+    return this.phase === "build";
+  }
+
   // --- Queries -------------------------------------------------------------
+
+  // The material's outline at angle 0, centered on its centroid, in px at today's scale.
+  outline(materialId: string): Vec[] {
+    let outline = this.outlines.get(materialId);
+    if (!outline) {
+      outline = shapeOutline(getMaterial(materialId).shape, this.pxPerMeter);
+      this.outlines.set(materialId, outline);
+    }
+    return outline;
+  }
 
   // Topmost placed piece under a board point: the frozen one first, then newest first.
   pieceAt(point: Vec): Piece | null {
+    if (!this.building) return null;
     const rank = (p: Piece) => (p.uid === this.frozenUid ? Infinity : p.placedSeq!);
     return (
       this.placedPieces()
@@ -162,7 +194,7 @@ export class BuildSession {
   getPreview(): Preview | null {
     const { held } = this;
     if (!held?.pointerBoard) return null;
-    const local = localOutline(this.piece(held.uid).materialId);
+    const local = this.outline(this.piece(held.uid).materialId);
 
     // Clamp so the whole piece stays on the board — pieces can go anywhere on it (§2.3).
     const b = boundsOf(transformOutline(local, 0, 0, held.angle));
@@ -184,19 +216,25 @@ export class BuildSession {
     return drawn;
   }
 
+  // Board y of the measured height, for the marker line. null until measured.
+  heightLineY(): number | null {
+    return this.result && PLATFORM_RECT.y - this.result.heightPx;
+  }
+
   // Debug view for tests and the console (window.__elevation in dev).
   debugPieces() {
     return this.pieces.map((p) => ({
       ...p,
       frozen: p.uid === this.frozenUid,
       pose: p.status === "placed" ? this.world.pose(p.uid) : null,
+      vertices: p.status === "placed" ? this.world.vertices(p.uid) : null,
     }));
   }
 
-  // --- Input ---------------------------------------------------------------
+  // --- Input (build phase only) --------------------------------------------
 
   pickUpFromTray(uid: string, pointerClient: Vec, pointerBoard: Vec | null) {
-    if (this.held || this.piece(uid).status !== "tray") return;
+    if (!this.building || this.held || this.piece(uid).status !== "tray") return;
     this.held = { uid, angle: 0, grab: { x: 0, y: 0 }, pointerClient, pointerBoard, origin: null };
     this.setStatus(uid, "held", null);
     this.emit();
@@ -235,6 +273,7 @@ export class BuildSession {
 
   // 1 = clockwise (E), -1 = counter-clockwise (Q). §2.2
   rotate(direction: 1 | -1) {
+    if (!this.building) return;
     const delta = direction * ROTATION_STEP_RAD;
     if (this.held) {
       this.held = { ...this.held, angle: this.held.angle + delta };
@@ -247,7 +286,7 @@ export class BuildSession {
     if (!uid) return;
     const pose = this.world.pose(uid);
     const angle = pose.angle + delta;
-    const outline = transformOutline(localOutline(this.piece(uid).materialId), pose.x, pose.y, angle);
+    const outline = transformOutline(this.outline(this.piece(uid).materialId), pose.x, pose.y, angle);
     if (isInsideBoard(outline) && this.isClear(outline, uid)) this.world.setAngle(uid, angle);
   }
 
@@ -262,9 +301,11 @@ export class BuildSession {
 
     // Freeze rule (§4.3): placing this piece locks in the previous one (it becomes
     // dynamic), and this one becomes the new frozen piece — re-placed pieces count as new.
+    // Once every piece is on the board there's no "next" placement to release it, so it falls now.
+    const lastPiece = this.pieces.every((p) => p.uid === held.uid || p.status === "placed");
     if (this.frozenUid) this.world.setFrozen(this.frozenUid, false);
-    this.addBody(held.uid, preview.pose, true);
-    this.frozenUid = held.uid;
+    this.addBody(held.uid, preview.pose, !lastPiece);
+    this.frozenUid = lastPiece ? null : held.uid;
     this.setStatus(held.uid, "placed", this.nextSeq++);
     this.held = null;
     this.emit();
@@ -278,7 +319,7 @@ export class BuildSession {
 
     // Put it back where it was — unless the pieces it supported have since fallen into that spot.
     const outline = transformOutline(
-      localOutline(this.piece(held.uid).materialId),
+      this.outline(this.piece(held.uid).materialId),
       origin.pose.x,
       origin.pose.y,
       origin.pose.angle,
@@ -300,28 +341,68 @@ export class BuildSession {
 
   private addBody(uid: string, pose: Pose, frozen: boolean) {
     const { materialId } = this.piece(uid);
-    this.world.addPiece(uid, getMaterial(materialId), localOutline(materialId), pose, frozen);
+    this.world.addPiece(uid, getMaterial(materialId), this.outline(materialId), pose, frozen);
+  }
+
+  // --- Build → Test transition (§4.6) --------------------------------------
+
+  // Ends the build now: any held piece is put back, the frozen piece unfreezes
+  // so the whole structure is dynamic, and the settling window starts.
+  endBuild() {
+    if (!this.building) return;
+    this.cancel();
+    if (this.frozenUid) this.world.setFrozen(this.frozenUid, false);
+    this.frozenUid = null;
+    this.buildMsLeft = 0;
+    this.phase = "settling";
+    this.emit();
+  }
+
+  // Official height (§5.1): the highest point of any piece still on the board, above the platform top.
+  private measure() {
+    const tops = this.placedPieces().flatMap((p) => this.world.vertices(p.uid).map((v) => v.y));
+    const heightPx = Math.max(0, PLATFORM_RECT.y - Math.min(PLATFORM_RECT.y, ...tops));
+    const percent = Math.min(100, (heightPx / MAX_STACK_PX) * 100);
+    this.result = { heightPx, heightM: heightPx / this.pxPerMeter, percent, band: bandFor(percent) };
+    this.phase = "measured";
+    this.emit();
   }
 
   // --- Simulation ----------------------------------------------------------
 
-  // Advance physics by real elapsed time, in fixed steps.
+  // Advance physics and the phase clocks by real elapsed time, in fixed steps.
+  // The clocks use the same capped time as physics, so they pause with a hidden tab.
   step(elapsedMs: number) {
-    this.stepBacklogMs = Math.min(this.stepBacklogMs + elapsedMs, MAX_FRAME_MS);
+    const dt = Math.min(elapsedMs, MAX_FRAME_MS);
+    this.stepBacklogMs = Math.min(this.stepBacklogMs + dt, MAX_FRAME_MS);
     while (this.stepBacklogMs >= PHYSICS_STEP_MS) {
       this.world.step(PHYSICS_STEP_MS);
       this.stepBacklogMs -= PHYSICS_STEP_MS;
     }
 
-    // A piece that falls off the board goes back to the tray. TBD: §4.8 despawn
-    // grace period / tower zone, and whether a fallen piece is lost instead (§8).
+    this.removeFallenPieces();
+
+    if (this.phase === "build") {
+      const shownBefore = Math.ceil(this.buildMsLeft / 1000);
+      this.buildMsLeft = Math.max(0, this.buildMsLeft - dt);
+      if (this.buildMsLeft === 0) this.endBuild();
+      else if (Math.ceil(this.buildMsLeft / 1000) !== shownBefore) this.emit();
+    } else if (this.phase === "settling") {
+      this.settleMsLeft -= dt;
+      if (this.settleMsLeft <= 0) this.measure();
+    }
+  }
+
+  // A piece that falls off the board goes back to the tray during the build (§4.5
+  // forgiveness) and is lost after it. TBD: §4.8 despawn grace period / tower zone.
+  private removeFallenPieces() {
     const fallen = this.placedPieces().filter(
       (p) => p.uid !== this.frozenUid && isOffBoard(this.world.vertices(p.uid)),
     );
     if (fallen.length === 0) return;
     for (const p of fallen) {
       this.world.removePiece(p.uid);
-      this.setStatus(p.uid, "tray", null);
+      this.setStatus(p.uid, this.building ? "tray" : "lost", null);
     }
     this.emit();
   }

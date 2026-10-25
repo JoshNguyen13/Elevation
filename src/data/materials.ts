@@ -27,7 +27,8 @@ export interface Material {
   icon?: string;
 }
 
-// TBD §3.1 — placeholder numbers; sizes match the Figma Build Phase pieces at PX_PER_METER = 40.
+// TBD §3.1 — placeholder numbers. Sizes are real-world meters; only their
+// proportions matter, since each day's set is scaled to fit (dailyScale.ts).
 export const BASIC_SHAPES: Material[] = [
   {
     id: "square",

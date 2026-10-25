@@ -1,16 +1,18 @@
 .ruler {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  position: relative;
   width: 140px;
   height: 560px;
   flex-shrink: 0;
 }
 
+/* top is the band's boundary; center the row on it. */
 .band {
+  position: absolute;
+  left: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+  transform: translateY(-50%);
 }
 
 .tick {
@@ -23,4 +25,13 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--color-text-muted);
+}
+
+.band[data-active] .tick {
+  background: var(--color-accent);
+}
+
+.band[data-active] .label {
+  color: var(--color-accent);
+  font-weight: 700;
 }

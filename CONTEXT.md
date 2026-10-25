@@ -13,14 +13,12 @@
 
 **Elevation** is a 2D, browser-based daily puzzle game. Every player gets the same 10 pieces and two minutes to stack them as high and stable as they can, then the tower is hit by that day's natural disaster. Score = height + survival time, shown as a percentile against everyone who played today (Wordle × Tricky Towers × Krillion results).
 
-**Current phase: Phase 2 — Core physics. ✅ Complete.**
-**Next: Phase 3 — Build → Test transition.** That covers:
-- the live 2-minute build timer;
-- at 0: unfreeze everything (§4.6) and lock the structure;
-- the `SETTLE_DURATION_S` window;
-- height measurement and banding (§5.1).
+**Current phase: Phase 3 — Build → Test transition. ✅ Complete.** That finishes the single-computer phases.
+**Next: split into the four tracks (§6).**
+- Track A starts Phase 4 (wind first). It runs from the `"measured"` phase in `BuildSession`, where physics keeps stepping.
+- Track B builds the "03 — Testing Phase" and "04 — Results" screens from the `HeightResult` the session exposes.
 
-Then split into the four tracks. Read "Build-phase rules" in §4 first.
+Read "Build-phase rules" in §4 first.
 
 ### Roadmap (§10.2)
 | Phase | What | Who |
@@ -28,7 +26,7 @@ Then split into the four tracks. Read "Build-phase rules" in §4 first.
 | **0 — Setup** ✅ | Repo scaffold, Next.js shell, Matter.js canvas with a static platform, this file | Single computer |
 | **1 — Static placement** ✅ | Drag tray → canvas, rotate Q/E, no gravity. Validates the interaction feel | Single computer |
 | **2 — Core physics** ✅ | Matter.js body per shape, freeze-on-placement rule (§4.3), friction-only materials, pickup/reposition (§4.4) | Single computer |
-| 3 — Build → Test transition | 2-min build timer, structure lock, settling window, height measurement + banding (§5.1) | Single computer, **then split into 4 tracks** |
+| **3 — Build → Test transition** ✅ | 2-min build timer, structure lock, settling window, height measurement + banding (§5.1) | Single computer, **then split into 4 tracks** |
 | 4 — Disasters | One disaster end to end first (wind), escalation + stability score, then the others | Track A |
 | 5 — Daily system + leaderboard | Supabase schema, device ID + display name, date seed → materials + disaster, percentile query | Track C |
 | 6 — Materials library | Offline SerpAPI + Gemini pipeline that grows the real-world-object library | Track D |
@@ -107,7 +105,9 @@ Center of mass = geometric centroid (Matter.js does this automatically for polyg
 `DisasterType = "wind" | "earthquake" | "flood" | "meteor"`
 
 ### 3.3 Score model (§5)
-- **Height**: measured once, when the build timer hits 0 (it doesn't change if the tower later falls). Banded as a % of that day's max possible height (all 10 pieces stacked end to end): **Grounded** 0–20 · **Mound** 20–40 · **Plateau** 40–60 · **Alps** 60–80 · **Limitless** 80–100.
+- **Height**: measured once, after the build timer hits 0 and the settling window ends (it doesn't change if the tower later falls). Banded as a % of that day's max possible height: **Grounded** 0–20 · **Mound** 20–40 · **Plateau** 40–60 · **Alps** 60–80 · **Limitless** 80–100.
+  - **Max possible height (decided 2026-10-24).** The board is fixed. Each day's pieces are **scaled together**, keeping their real-world proportions. The scale is chosen so all pieces laid end to end by their **longest dimension** reach `HEIGHT_HEADROOM` (90%) of the space above the platform: `MAX_STACK_PX` = 468px = 100%. See `src/lib/game/dailyScale.ts`.
+  - The height is shown as **real-world meters + band**, e.g. "5.4 m · Mound". Meters = px ÷ the day's `pxPerMeter`.
 - **Stability**: 0.0–5.0. Starting formula: `5 × min(time_survived / MAX_TEST_DURATION, 1)`.
 - **Combined**: 50/50 height + stability. Default to implement first: normalize both to 0–100 and average (TBD).
 
@@ -119,7 +119,8 @@ All constants live in **`src/lib/physics/constants.ts`**. Change them there and 
 
 | Constant | Value | Status |
 |---|---|---|
-| `PX_PER_METER` | 40 | TBD (§4.2). Chosen so the Figma pieces (~50–86px) are ~1.5–2m |
+| `PX_PER_METER` | 40 | Board/platform layout unit only. **Pieces use the per-day scale** from `pieceScale()` (≈22.4 px/m for the placeholder set, so a square is ~40px) |
+| `HEIGHT_HEADROOM` | 0.9 | Max possible height = 90% of the space above the platform (§5.1) |
 | Canvas | 10m × 14m (400 × 560 px) | Matches the Figma Build Area height |
 | Platform | 5.5m × 0.5m (220 × 20 px), corner radius 6px, 0.5m from the bottom | TBD (§4.2). Matches Figma |
 | `GRAVITY_Y` | 1 (Matter.js default) | TBD. At 40 px/m this is ≈1000 px/s² ≈ 25 m/s² (~2.5 g). It feels snappy. Tune by playtesting |
@@ -144,8 +145,8 @@ This keeps the "meters internally, screen-proportionate" intent of §4.2 without
 - ✅ **Freeze on placement (§4.3).** The most recently placed piece is *static* (weightless but collidable). Placing the next piece makes the previous one dynamic and freezes the new one. This is what lets `/\` leaning pairs work. (We tried an uncollidable frozen piece on 2026-10-24 and reverted it. Pieces that came to rest inside it stayed overlapping once it unfroze.)
 - ✅ **Pickup (§4.4).** A placed piece can be picked back up, and its body is removed from the world. Anything leaning on it falls naturally. When re-placed, it re-enters the freeze rule as if new.
 - ✅ **Friction-only materials (§3.2, §4.9).** Each body gets `material.friction`, restitution 0 and `setMass(material.mass)`. Matter uses the **lower** friction of two touching bodies, and static bodies (platform, frozen piece) are forced to friction 1, so a contact always uses the material's own friction.
-- **Build forgiveness (§4.5).** A collapse during build doesn't end the run. Only the state at timer = 0 counts.
-- **Transition (§4.6).** At timer = 0, unfreeze *everything*, wait `SETTLE_DURATION_S` (no disaster force), then measure the official height.
+- ✅ **Build forgiveness (§4.5).** A collapse during build doesn't end the run. Only the state at timer = 0 counts. Pieces that fall off the board during the build return to the tray.
+- ✅ **Transition (§4.6).** At timer = 0, unfreeze *everything*, wait `SETTLE_DURATION_S` (no disaster force), then measure the official height.
 - **Collapsed (§4.7, TBD).** Track each piece's peak height. A piece counts as fallen when its lowest point touches the ground after having been more than ~1 piece-height up.
 - **Despawn (§4.8).** A piece outside the "tower zone" for longer than a grace period is removed and not scored.
 - **Disasters (§4.10).** Wind (horizontal force scaled by exposed area/height), earthquake (sinusoidal horizontal motion), flood (rising water, buoyancy + drag), meteor (one big impulse). All escalate with survival time. Build wind first.
@@ -176,8 +177,25 @@ Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, 
   - "Touching" is allowed (SAT overlap with a 0.5px tolerance), so pieces can sit flush.
 - **No-overlap drop rule.** Not in the spec. It stops Matter from violently pushing overlapping bodies apart. Kept for Phase 2, still open in §8.
 - **Fallen pieces.** A dynamic piece that leaves the board entirely (below the bottom, or past either side; there are no walls) is removed and **returned to the tray**. This is a placeholder for §4.8 despawn and §4.5 forgiveness, still open in §8.
+- **Last piece.** When a drop puts the 10th piece on the board, it's placed **dynamic, not frozen**, since no "next placement" will ever release it. The previous frozen piece unfreezes as usual, so nothing is frozen. Picking a piece back up and re-dropping it follows the same rule.
 - **Newest piece** is drawn in the accent blue, as in Figma. It's the frozen piece, and the Q/E target after placing.
 - **Daily set.** Placeholder `square, triangle, pentagon, …` (10 pieces, mirrors the Figma tray) until the Phase 5 seed exists.
+- **Piece scale.** `session.pxPerMeter = pieceScale(materialIds)`. Every piece outline comes from `session.outline(materialId)`, which covers bodies, drawing, the drag ghost and tray icons. There's no module-level outline cache any more.
+- **Phases.** `phase` moves `"build"` → `"settling"` → `"measured"`, all in the snapshot.
+  - **Build.** A 120s countdown, in `secondsLeft`. It emits once per displayed second and calls `endBuild()` at 0.
+  - **`endBuild()`** is public; the dev hook and a future "Done" button can call it.
+    - Any held piece is cancelled (restored, or back to the tray).
+    - The frozen piece unfreezes.
+    - Input is locked: pickup, rotate and the hover cursor are no-ops, and the tray is disabled.
+  - **Settling.** After `SETTLE_DURATION_S`, `measure()` sets `result: HeightResult` (`src/lib/game/scoring.ts`).
+    - `heightPx` = platform top − the highest vertex of any placed piece.
+    - Also `heightM`, `percent` of `MAX_STACK_PX`, and `band`.
+    - Physics keeps running afterwards for the test phase.
+  - **The clocks** advance by the same capped frame time as physics, so they **pause while the tab is hidden**.
+- **Lost pieces.** After the build, a piece that falls off the board gets status `"lost"` and does not return to the tray.
+- **Height UI.** The top bar shows `Build Time: mm:ss` → `Settling…` → `Height: 5.4 m · Mound`.
+  - `HeightRuler` puts each band's tick at its real lower boundary on the board and highlights the achieved band in accent.
+  - The canvas draws a dashed accent line at the measured height.
 - **Rendering.** Custom canvas draw (`src/lib/game/draw.ts`), not `Matter.Render`. The held piece is drawn on the canvas when the pointer is over the board, and as a fixed-position SVG ghost when it's off the board.
 
 ---
@@ -237,7 +255,7 @@ Elevation/
     │       ├── BoardCanvas.tsx          ← the 400×560 board canvas (HiDPI) + the game loop (step physics, draw)
     │       ├── PieceTray.tsx            ← 10 tray slots (Available / Placed)
     │       ├── PieceSvg.tsx             ← a piece outline as SVG (tray icons, off-board drag ghost)
-    │       └── HeightRuler.tsx          ← static band labels (§5.1)
+    │       └── HeightRuler.tsx          ← band ticks at their real heights; highlights the measured band (§5.1)
     ├── data/
     │   ├── materials.ts                 ← Material schema, BASIC_SHAPES, MATERIALS_POOL, getMaterial()
     │   └── items.generated.json         ← pipeline output (Phase 6); currently []
@@ -246,8 +264,10 @@ Elevation/
         ├── game/
         │   ├── geometry.ts              ← shapeOutline() (piece vertices, px), transforms, hit test, SAT overlap
         │   ├── board.ts                 ← board size + PLATFORM_RECT / PLATFORM_OUTLINE in px
-        │   ├── buildSession.ts          ← BuildSession: build-phase rules (freeze, pickup, drop, rotate) driving the physics
-        │   └── draw.ts                  ← custom canvas renderer (platform + pieces)
+        │   ├── buildSession.ts          ← BuildSession: build rules (freeze, pickup, drop, rotate), timer, settle, height measurement
+        │   ├── dailyScale.ts            ← per-day piece scale + MAX_STACK_PX (100% height)
+        │   ├── scoring.ts               ← HEIGHT_BANDS, bandFor(), HeightResult
+        │   └── draw.ts                  ← custom canvas renderer (platform + pieces + height line)
         ├── physics/
         │   ├── constants.ts             ← PX_PER_METER, platform, gravity, step + solver settings, timings, toPx/toMeters
         │   └── world.ts                 ← PhysicsWorld: Matter engine + platform + piece bodies (no game rules)
@@ -281,12 +301,17 @@ npm run lint
 npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first so Next generates its route types (e.g. LayoutProps)
 ```
 
-**What you should see (Phase 2):** the Figma "02 — Build Phase" screen at 1440×900. It has a top bar ("Build Time: 02:00", static until Phase 3, and a live "Pieces Left: N / 10"), the Height Ruler, the 400×560 board with the grey platform, and the 10-piece tray.
+**What you should see (Phase 3):** the Figma "02 — Build Phase" screen at 1440×900.
+- **Top bar:** a live "Build Time" countdown and a live "Pieces Left: N / 10".
+- **Board:** the Height Ruler (band ticks at their real heights), the 400×560 board with the grey platform, and the 10-piece tray.
+- **When the timer hits 0** (or you run `window.__elevation.endBuild()` in the dev console):
+  - the tray locks and the top bar shows "Settling…";
+  - about 1.5s later it shows the height and band, the band lights up on the ruler, and a dashed blue line marks the height.
 - Drag a tray piece onto the board. It **hangs where you drop it (blue, frozen)** until you place the next piece, then falls and stacks under gravity.
 - **Q/E** rotate 15° while holding, or rotate the frozen piece right after placing.
 - Drops that overlap another piece or the platform show grey and dashed, and the piece bounces back.
 - Grab any placed piece to move it, and whatever rested on it falls. Drag it off the board to return it to the tray. **Esc** cancels a drag.
-- Pieces that fall off the board return to the tray.
+- Pieces that fall off the board return to the tray during the build. After the build they're lost.
 
 **Stack versions:** Next.js 16.4 (App Router, Turbopack, `cacheComponents` on), React 19.3, TypeScript 5, Matter.js 0.20.
 ⚠ Next 16 has breaking changes from older Next versions. Check `node_modules/next/dist/docs/` before relying on remembered APIs (see `AGENTS.md`).
@@ -349,6 +374,12 @@ Resolved and removed: backend provider, identity model, deployment target, visua
 - **Raised during Phase 2**
   - [ ] **Fallen pieces.** During build, a piece that leaves the board currently returns to the tray (forgiving, §4.5). Should it instead be lost, matching §2.3 "simply disappears"? Also decide whether a piece resting off the platform but still on the board counts as fallen (§4.7, §4.8).
   - [ ] **Gravity strength.** The Matter default is ~2.5 g at 40 px/m. Pick by feel (snappy vs readable collapses) before tuning disasters.
+- **Raised during Phase 3**
+  - [x] ~~How "max possible height" fits a fixed board~~ **Per-day scale**: the longest dimensions end to end fill 90% of the space above the platform (§3.3).
+  - [ ] Pieces now draw at ~56% of their Phase 2 size with the placeholder set (a square is ~40px, down from 72), because longest-dimension fitting is conservative. Playtest whether they feel too small.
+  - [ ] The build timer pauses while the tab is hidden, since it shares the physics clock. Decide whether a daily competitive run needs wall-clock time instead.
+  - [ ] Should there be a "Done building" button to end early? `endBuild()` already supports it. It's not in Figma.
+  - [ ] Height counts every placed piece still on the board, including one dangling off the platform edge. Revisit along with §4.7 / §4.8.
 
 ---
 
@@ -362,6 +393,34 @@ Newest first. One entry per work session: **date · who · phase · what changed
 - Decisions:
 - Next / blockers:
 -->
+
+### 2026-10-24 · Joshua (+ Claude Code) · Phase 3
+- **Changed**
+  - Live build timer.
+  - `endBuild()` handles the build end: held piece cancelled, frozen piece unfrozen, input locked.
+  - Then the settling window, then height measured into `HeightResult` with its band. New `scoring.ts`.
+  - New per-day piece scale (`dailyScale.ts`).
+  - `shapeOutline()` takes a px/m scale, and `longestDimension()` was added.
+  - Session-owned outlines replace `localOutline()`.
+  - New piece status `"lost"`.
+  - The HeightRuler shows real band positions and the active band, and the canvas draws a height line.
+- **Decisions**
+  - Max height comes from a per-day scale: the longest dimensions end to end fill 90% of the space above the platform.
+  - The height is shown in real meters plus the band.
+  - The clocks share the physics frame time.
+  - Tried an uncollidable frozen piece earlier this session and reverted it (see §4).
+- **Verified** (headless Chrome over CDP, real input, no console errors)
+
+  | Check | Result |
+  |---|---|
+  | Pixels per meter | 22.42; a square is 40.4px wide |
+  | Timer counts down | 01:58 → 01:56 over 2s |
+  | Three stacked squares + a frozen triangle off the edge, then `endBuild()` | "Settling…", no frozen piece, tray all disabled, tray click and E ignored |
+  | Result after the settle | "Height: 5.4 m · Mound" (120.66px, 25.8%), matching the vertex math exactly |
+  | The triangle that fell after the lock | `"lost"` |
+
+  - tsc, lint and build pass.
+- **Next / blockers:** split into tracks. Track A: wind (Phase 4). Track B: Testing / Results screens from `HeightResult`.
 
 ### 2026-10-24 · Joshua (+ Claude Code) · Phase 2
 - **Changed**

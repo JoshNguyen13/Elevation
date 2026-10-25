@@ -38,7 +38,7 @@ export default function BoardCanvas({
     const loop = (now: number) => {
       session.step(now - last);
       last = now;
-      drawBoard(ctx, session.drawables());
+      drawBoard(ctx, session.drawables(), session.heightLineY());
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
