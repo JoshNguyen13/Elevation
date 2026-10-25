@@ -1,4 +1,5 @@
 import Button from "@/components/ui/Button";
+import { sound } from "@/lib/juice";
 import styles from "./TutorialScreen.module.css";
 
 // Figma "01 — Tutorial". Copy from the Figma step cards.
@@ -20,7 +21,14 @@ export default function TutorialScreen({ onDone, ctaLabel }: TutorialScreenProps
     <div className={styles.screen}>
       <header className={styles.topBar}>
         <h1 className={styles.title}>How to Play</h1>
-        <button type="button" className={styles.skip} onClick={onDone}>
+        <button
+          type="button"
+          className={styles.skip}
+          onClick={() => {
+            sound.click();
+            onDone();
+          }}
+        >
           Skip →
         </button>
       </header>
@@ -38,7 +46,14 @@ export default function TutorialScreen({ onDone, ctaLabel }: TutorialScreenProps
       </ol>
 
       <footer className={styles.footer}>
-        <Button onClick={onDone}>{ctaLabel}</Button>
+        <Button
+          onClick={() => {
+            sound.confirm();
+            onDone();
+          }}
+        >
+          {ctaLabel}
+        </Button>
       </footer>
     </div>
   );

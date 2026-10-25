@@ -8,6 +8,7 @@ import { getMaterial } from "@/data/materials";
 import { boundsOf, shapeCentroid, transformOutline, type Vec } from "@/lib/game/geometry";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
 import { runFromSnapshot, type RunSummary } from "@/lib/daily/run";
+import { sound } from "@/lib/juice";
 import { colors } from "@/lib/theme";
 import Button from "@/components/ui/Button";
 import BoardCanvas from "./BoardCanvas";
@@ -433,7 +434,14 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
               <dd className={styles.combined}>{outcome.combined}</dd>
             </div>
           </dl>
-          <Button onClick={onContinue}>See Results →</Button>
+          <Button
+            onClick={() => {
+              sound.reveal();
+              onContinue();
+            }}
+          >
+            See Results →
+          </Button>
         </div>
       ) : testing ? (
         <StabilityMeter integrity={snapshot.integrity} />

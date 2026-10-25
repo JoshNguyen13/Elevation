@@ -288,6 +288,27 @@ class Sound {
     [660, 880, 1320].forEach((freq, i) => this.tone(freq, 0.6, { gain: 0.13, delay: i * 0.12 }));
   }
 
+  // --- UI buttons ----------------------------------------------------------------------
+
+  // Secondary buttons (Skip): a soft, rounded tick.
+  click() {
+    this.tone(1100, 0.05, { type: "triangle", gain: 0.1, endFreq: 700 });
+  }
+
+  // Main buttons (the tutorial's CTA): a bright two-step pop with a little air on top.
+  confirm() {
+    this.tone(587, 0.08, { type: "triangle", gain: 0.16, endFreq: 640 });
+    this.tone(880, 0.14, { type: "triangle", gain: 0.14, delay: 0.06 });
+    this.noise(0.05, { gain: 0.03, filter: "highpass", freq: 4000 });
+  }
+
+  // "See Results": a quick rising arpeggio, then a sparkle.
+  reveal() {
+    [523, 659, 784, 1047].forEach((freq, i) => this.tone(freq, 0.3, { type: "triangle", gain: 0.12, delay: i * 0.06 }));
+    this.tone(2093, 0.5, { gain: 0.04, delay: 0.24 });
+    this.noise(0.4, { gain: 0.04, filter: "highpass", freq: 6000, delay: 0.2, attack: 0.05 });
+  }
+
   // --- Disaster cues (strength 0–1, pan −1–1). Each has its own cooldown, so a cue
   // raised every physics step still plays at a sane rate. ---------------------------
 
@@ -302,8 +323,7 @@ class Sound {
   }
 
   // Earthquake: a brown-noise rumble that builds, rolls (overlapping low bursts at random
-  // times), and sinks, over a falling sub, with an 80 Hz layer small speakers can
-  // reproduce, and rattling crackles when it's strong.
+  // times), and sinks, over a falling sub, with an 80 Hz layer small speakers can reproduce.
   tremor(strength: number, pan?: number) {
     const ctx = this.ready();
     if (!ctx || !this.cooled(ctx, "tremor", 0.4)) return;
@@ -324,9 +344,6 @@ class Sound {
     }
     this.tone(48, duration, { gain: 0.15 + s * 0.3, endFreq: 30, attack: 0.1 });
     this.tone(82, duration * 0.7, { type: "triangle", gain: 0.07 + s * 0.13, endFreq: 60, attack: 0.1, pan });
-    if (s > 0.5) {
-      for (let i = 0; i < 3; i++) this.noise(0.04, { gain: 0.05 + s * 0.08, filter: "highpass", freq: 2500, delay: Math.random() * duration * 0.6, pan });
-    }
   }
 
   // Flood: a slow wash that rises and crests, pulls back, with a low slosh under it.

@@ -9,9 +9,15 @@ function panFor(x?: number) {
   return x === undefined ? undefined : Math.min(0.6, Math.max(-0.6, (x / BOARD_WIDTH_PX - 0.5) * 1.2));
 }
 
+// During an earthquake test, pieces knock together constantly; below this strength
+// those knocks stay silent, so the rumble isn't buried in clicks. Real hits still thud.
+const QUAKE_IMPACT_MIN = 0.35;
+let quaking = false;
+
 export function playSoundFor(event: JuiceEvent) {
   switch (event.kind) {
     case "impact":
+      if (quaking && !event.meteor && event.strength < QUAKE_IMPACT_MIN) break;
       sound.impact(event.strength, event.meteor);
       break;
     case "fallen":
@@ -30,6 +36,7 @@ export function playSoundFor(event: JuiceEvent) {
       sound.tick(event.secondsLeft);
       break;
     case "phase": {
+      quaking = event.phase === "testing" && event.disaster === "earthquake";
       if (event.phase === "testing") {
         sound.whoosh();
         if (event.disaster) sound.startAmbience(event.disaster);
@@ -86,6 +93,10 @@ const PREVIEWS: Record<string, (strength: number) => JuiceEvent | void> = {
   "fat-guy-incoming": (strength) => ({ kind: "disaster", cue: "fat-guy-incoming", strength }),
   twister: (strength) => ({ kind: "disaster", cue: "twister", strength }),
   swat: (strength) => ({ kind: "disaster", cue: "swat", strength }),
+  // Not game events: the UI buttons call these directly.
+  "button-click": () => sound.click(),
+  "button-confirm": () => sound.confirm(),
+  "results-button": () => sound.reveal(),
   // The test starting with a disaster: the whoosh, then that disaster's loop.
   "ambience-wind": () => ({ kind: "phase", phase: "testing", disaster: "wind" }),
   "ambience-earthquake": () => ({ kind: "phase", phase: "testing", disaster: "earthquake" }),
