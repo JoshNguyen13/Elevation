@@ -12,6 +12,9 @@ import {
   PLATFORM_CORNER_RADIUS_PX,
   PLATFORM_FRICTION,
   POSITION_ITERATIONS,
+  REST_CALM_SPEED,
+  REST_STEPS,
+  REST_TURN_DEG,
   RESTITUTION,
   VELOCITY_ITERATIONS,
 } from "./constants";
@@ -58,11 +61,11 @@ function setStatic(body: Matter.Body, isStatic: boolean) {
   if (isStatic) body.friction = friction;
 }
 
-// Still enough to bond: moving slower than BOND_CALM_SPEED, at its centre and at its rim.
-function isCalm(body: Matter.Body): boolean {
+// Moving slower than `limit` px/step, at its centre and at its rim.
+function isCalm(body: Matter.Body, limit: number): boolean {
   const { min, max } = body.bounds;
   const rim = Math.hypot(max.x - min.x, max.y - min.y) / 2;
-  return body.speed + body.angularSpeed * rim < BOND_CALM_SPEED;
+  return body.speed + body.angularSpeed * rim < limit;
 }
 
 // How far apart a pin's two anchors have been pulled, in px.
@@ -82,6 +85,11 @@ export class PhysicsWorld {
   // Per touching pair of pieces: calm steps in a row, and the weld once they've bonded.
   private calmSteps = new Map<string, number>();
   private readonly welds = new Map<string, Weld>();
+  // Resting (REST_* in constants.ts): calm steps in a row per piece, and where a rested
+  // piece is held. Off once the test starts.
+  private calmRest = new Map<Matter.Body, number>();
+  private readonly restPose = new Map<Matter.Body, Pose>();
+  private resting = true;
   // New contacts since the last drain, for sound / particles only (never fed back).
   private impacts: Impact[] = [];
 
@@ -142,6 +150,7 @@ export class PhysicsWorld {
     Matter.Composite.remove(this.engine.world, body);
     this.bodies.delete(uid);
     this.pieceBodies.delete(body);
+    this.restPose.delete(body);
   }
 
   // Frozen = static: weightless and immovable, but still collidable (§4.3). A frozen
@@ -154,6 +163,14 @@ export class PhysicsWorld {
       Matter.Body.setVelocity(body, { x: 0, y: 0 });
       Matter.Body.setAngularVelocity(body, 0);
     }
+  }
+
+  // Resting is for building: the test runs with nothing held, so disasters play on plain
+  // physics whatever happened to be resting.
+  setResting(resting: boolean) {
+    this.resting = resting;
+    this.calmRest.clear();
+    this.restPose.clear();
   }
 
   setAngle(uid: string, angle: number) {
@@ -196,6 +213,7 @@ export class PhysicsWorld {
   step(deltaMs: number) {
     Matter.Engine.update(this.engine, deltaMs);
     this.updateWelds();
+    if (this.resting) this.holdRestingPieces();
   }
 
   // Uids of the pieces welded to this one (dev / debug).
@@ -217,7 +235,7 @@ export class PhysicsWorld {
       if (!pair.isActive || a.isStatic || b.isStatic || !this.pieceBodies.has(a) || !this.pieceBodies.has(b)) continue;
       const key = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
       if (this.welds.has(key)) continue;
-      const steps = isCalm(a) && isCalm(b) ? (this.calmSteps.get(key) ?? 0) + 1 : 0;
+      const steps = isCalm(a, BOND_CALM_SPEED) && isCalm(b, BOND_CALM_SPEED) ? (this.calmSteps.get(key) ?? 0) + 1 : 0;
       calmSteps.set(key, steps);
       // Two contact points, so the weld also holds against turning (Matter types omit supportCount).
       const { supports, supportCount } = pair.collision as Matter.Collision & { supportCount: number };
@@ -238,6 +256,36 @@ export class PhysicsWorld {
       this.welds.set(key, { a, b, pins });
     }
     this.calmSteps = calmSteps;
+  }
+
+  // Holds each piece that has stayed calm for REST_STEPS where it rested, undoing this
+  // step's creep; turning stays free. Anything faster than REST_CALM_SPEED (a hit, a push,
+  // its support going) lets go, and so does turning past REST_TURN_DEG (a slow topple,
+  // which a pinned centre would otherwise stall). Physics state only, so it's deterministic.
+  private holdRestingPieces() {
+    const calmRest = new Map<Matter.Body, number>();
+    for (const body of this.pieceBodies) {
+      if (body.isStatic || !isCalm(body, REST_CALM_SPEED)) {
+        this.restPose.delete(body);
+        continue;
+      }
+      const steps = (this.calmRest.get(body) ?? 0) + 1;
+      calmRest.set(body, steps);
+      if (steps < REST_STEPS) continue;
+      const at = this.restPose.get(body);
+      if (!at) {
+        this.restPose.set(body, { x: body.position.x, y: body.position.y, angle: body.angle });
+        continue;
+      }
+      if (Math.abs(body.angle - at.angle) > (REST_TURN_DEG * Math.PI) / 180) {
+        this.restPose.delete(body);
+        calmRest.delete(body);
+        continue;
+      }
+      Matter.Body.setPosition(body, at);
+      Matter.Body.setVelocity(body, { x: 0, y: 0 });
+    }
+    this.calmRest = calmRest;
   }
 
   private removeWeld(key: string) {

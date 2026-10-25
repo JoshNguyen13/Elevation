@@ -66,7 +66,7 @@ export const PLATFORM_FRICTION = 2;
 // stable stack acts as one body (pieces stop sliding off each other under a disaster), until
 // a hard enough jolt snaps the weld. TBD — tune with the disasters.
 // Steps two touching pieces must stay calm (relative speed below BOND_CALM_SPEED px/step) to bond.
-export const BOND_REST_STEPS = 30;
+export const BOND_REST_STEPS = 60;
 export const BOND_CALM_SPEED = 0.1;
 // Weld springiness (Matter constraint stiffness, 0–1) and damping.
 export const BOND_STIFFNESS = 0.5;
@@ -74,6 +74,17 @@ export const BOND_DAMPING = 0.1;
 // A weld snaps once its two anchors are pulled this far apart (px). At 0.5 a meteor hit
 // snaps welds; an earthquake doesn't.
 export const BOND_BREAK_PX = 0.5;
+
+// Resting (build and settle only): a piece calm for REST_STEPS steps in a row (below
+// REST_CALM_SPEED px/step, at its centre and rim) is held where it rested, but still free
+// to turn, so it can lean, rock and tip. Matter's friction never fully holds, so without
+// this resting pieces creep, and welded ones glide (the weld pins nudge them every step).
+// Checked again every step, so a push, a topple or its support leaving lets go at once:
+// one step of unsupported gravity (≥ 0.14 px/step) is above the limit. A held piece that
+// keeps turning (past REST_TURN_DEG since it was held) is tipping over, so it lets go too.
+export const REST_STEPS = 30;
+export const REST_CALM_SPEED = 0.1;
+export const REST_TURN_DEG = 0.5;
 export const DAILY_PIECE_COUNT = 10; // §3.3
 
 // --- Testing Phase (disasters track) -------------------------------------------

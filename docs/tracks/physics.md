@@ -9,6 +9,45 @@ Newest first. One entry per session or PR: date · who · branch · what changed
 - Open:
 -->
 
+## 2026-10-25 · Josh (integrator) · main (resting: no more creep while building)
+- Changed: **resting** (`holdRestingPieces()` in `world.ts`, `REST_*` in `constants.ts`).
+  - A piece calm for 30 steps (below 0.1 px/step at its centre and rim) is held where it rested. Each step the solver runs as usual, then its centre is put back, which undoes Matter's creep. **Turning stays free**, so pieces still lean, rock and tip.
+  - Lets go when the piece moves faster than 0.1 px/step (a hit, a push, its support leaving: one step of unsupported gravity is ≥ 0.14 px/step), or when it turns more than 0.5° while held. A pinned centre would otherwise stall a slow topple.
+  - Build and settle only. `setResting(false)` when the test starts (one line in `buildSession.ts`), so disasters run on plain physics.
+- Why: pieces resting on the platform slid sideways at a steady 1–6 px/s, often as a welded group, on 15–30% of pieces.
+  - Matter's grip depends on overlap, so any sideways push slowly slides a piece.
+  - Weld pins nudge their pieces every step.
+- Tried / numbers: a headless Node run of `BuildSession` (outside the repo) over 12 puzzles, placing pieces side by side with 0 / 1 / 4 px gaps, then a second row. After the build: 10 s at rest, a 0.3 px/step shove and a small twist on each piece, then every hold released.
+
+  | Version | Drift > 2 px in 10 s | Shove slide | Twist | Neighbours that react | Drops after release |
+  |---|---|---|---|---|---|
+  | Plain physics (before) | 14–29 | 0.67–0.99 px | 0.24–0.27° | 318–389 | none |
+  | Full pin, first version (too sticky) | 0–2 | 0.23–0.44 px | **0.00°** | 31–36 | up to 114 px |
+  | **Now** (centre held, turning free, turn release) | 4–7 | 0.20–0.36 px | 0.11–0.41° | 86–99 | ≤ 8 px on 1 / 4 px gaps |
+
+  - **Rejected: a partial hold** (undo 50–90% of each step's motion). Drift came back (13–33 pieces), because the weld pins push harder against the gap that never closes.
+  - **Rejected: lower calm limits** (0.03 / 0.05 / 0.07). Creep and gentle pushes happen at the same speeds, so drift returned (6–19).
+  - **Rejected: letting go when anything moving touches the piece.** A loose piece frees its welded group, and the glide comes back (8–12).
+  - **Rejected: Matter sleeping.**
+    - Welded pieces never sleep, because `Constraint.postSolveAll` wakes any body a pin touched.
+    - Sleeping bodies still move: `Constraint.preSolveAll` applies the cached pin impulse every step.
+    - Sleepers held pieces in mid-air (a pizza box dropped 27 px on waking).
+  - **Rejected: no welds.** Turning bonding off made the drift worse (27–39).
+- Disasters (same bot builds; test physics unchanged, but towers reach it intact): mean stability, column / spread.
+
+  | Disaster | Before | After |
+  |---|---|---|
+  | Earthquake | 2.40 / 2.52 | 3.07 / 2.34 |
+  | Cat | 2.73 / 1.60 | 3.07 / 2.39 |
+  | Meteor | 1.75 / 2.55 | 2.37 / 2.19 |
+  | Fat guy | 1.34 / 1.74 | 2.09 / 1.51 |
+  | Wind | 1.34 / 1.13 | 1.21 / 1.35 |
+  | Tornado | 4.47 / 3.94 | 4.23 / 4.41 (18/24 at 5/5) |
+- Open:
+  - Gentle pushes under 0.1 px/step still barely move a resting piece.
+  - When the test starts, the plain-physics creep resumes (2–5 px), as it always has during the test.
+  - The tornado needs toughening.
+
 ## 2026-10-25 · Matthew/Joshua (+ Claude Code) · physics/bonded-stacks
 - Changed:
   - **Bonded stacks** (`world.ts`, `BOND_*` in `constants.ts`). Two pieces in contact that both stay calm for 30 steps (0.5s) are welded by two Matter pins at their contact points. A weld snaps once its anchors are pulled 0.5px apart, and calm pieces bond again.

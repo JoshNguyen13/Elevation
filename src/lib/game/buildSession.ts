@@ -714,6 +714,8 @@ export class BuildSession {
       // Nothing standing to test: the run ends with zero survival.
       if (this.towerUids.length === 0) return this.finishTest(true);
       this.phase = "testing";
+      // Disasters play on fully awake physics (resting is a build-phase aid).
+      this.world.setResting(false);
       this.juice({ kind: "phase", phase: "testing", disaster: this.disaster.type });
       this.emit();
     } else if (this.phase === "testing") {
