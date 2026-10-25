@@ -1,5 +1,5 @@
 // The page backdrop: the day's disaster approaching from far away while you build
-// (disasters track). A volcano that erupts harder, a fat guy walking closer, a funnel
+// (disasters track). A meteor shower thickening in the sky, a fat guy walking closer, a funnel
 // growing on the horizon, a cat rising over the page edge, trees bending, the ground
 // cracking. During the settle + height reveal the "final approach" brings the first hit
 // to the board's edge, where the real disaster body takes over at the start of the test.
@@ -9,7 +9,7 @@
 import type { DisasterBuildUp, DisasterView } from "@/lib/physics/disasters";
 import { colors } from "@/lib/theme";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_RECT } from "./board";
-import { FX, drawFatGuy, drawFatGuyStanding, drawFireball, drawFunnel, drawPaw } from "./disasterArt";
+import { FX, drawFatGuy, drawFatGuyStanding, drawFireball, drawFunnel, drawPaw, drawWolf, drawWolfBreath } from "./disasterArt";
 
 export interface BackdropFrame {
   // Viewport, CSS px.
@@ -65,8 +65,8 @@ const hash = (i: number, salt = 0) => {
 };
 
 export class Backdrop {
-  private smoke: Mote[] = [];
-  private embers: Mote[] = [];
+  // Meteors falling across the sky in the meteor backdrop, each with its recent path.
+  private shower: { x: number; y: number; vx: number; vy: number; r: number; trail: { x: number; y: number }[] }[] = [];
   private dust: Mote[] = [];
   private flyerTrail: { x: number; y: number }[] = [];
   private stride = 0;
@@ -186,15 +186,12 @@ export class Backdrop {
     ctx.restore();
   }
 
-  // --- Meteor: a volcano erupting harder, then a fireball arcs onto the board ----------
+  // --- Meteor: a meteor shower thickening in the sky, then one fireball dives onto the board ---
 
   private meteor(back: CanvasRenderingContext2D, front: CanvasRenderingContext2D, f: BackdropFrame, dtS: number) {
     const a = f.approach;
-    const region = this.region(f);
     const ground = this.horizonY(f);
-    const s = Math.min(1, region.width / 380) * (0.6 + 0.4 * a);
-    const vx = region.center;
-    const craterY = ground - 150 * s;
+    const side = f.up.disaster.side;
 
     // A warm sky.
     const sky = back.createLinearGradient(0, 0, 0, ground);
@@ -203,57 +200,33 @@ export class Backdrop {
     back.fillStyle = sky;
     back.fillRect(0, 0, f.width, ground);
 
-    // Smoke, then the cone over it, then the glow in the crater.
-    if (Math.random() < dtS * (1 + 6 * a)) {
-      this.smoke.push(mote(vx + (Math.random() - 0.5) * 16 * s, craterY, (Math.random() - 0.5) * 12, -(14 + 26 * a), 6, 7 * s));
-    }
-    this.updateMotes(this.smoke, dtS, 0, 4 * s);
-    this.drawMotes(back, this.smoke, FX.smoke, 0.45);
-    back.save();
-    back.fillStyle = "#e3dfdb";
-    back.strokeStyle = colors.border;
-    back.beginPath();
-    back.moveTo(vx - 170 * s, ground);
-    back.lineTo(vx - 26 * s, craterY);
-    back.lineTo(vx + 26 * s, craterY);
-    back.lineTo(vx + 170 * s, ground);
-    back.closePath();
-    back.fill();
-    back.stroke();
-    const glow = back.createRadialGradient(vx, craterY, 0, vx, craterY, 60 * s);
-    glow.addColorStop(0, `rgba(255, 138, 61, ${0.3 + 0.6 * a})`);
-    glow.addColorStop(1, "rgba(255, 138, 61, 0)");
-    back.fillStyle = glow;
-    back.beginPath();
-    back.arc(vx, craterY, 60 * s, 0, Math.PI * 2);
-    back.fill();
-    // Lava running down the near side, longer as it gets angrier.
-    back.strokeStyle = FX.fire;
-    back.lineWidth = 3 * s;
-    back.globalAlpha *= 0.4 + 0.5 * a;
-    back.beginPath();
-    back.moveTo(vx + 8 * s, craterY);
-    back.quadraticCurveTo(vx + 30 * s, craterY + 60 * s * a, vx + 50 * s, craterY + 120 * s * a);
-    back.stroke();
-    back.restore();
-
-    // Embers thrown out of the crater, more and higher over time.
-    const rate = f.up.stage === "testing" ? 6 : 0.3 + 5 * a * a;
+    // Meteors falling slowly across the sky, the way the real ones travel (toward `side`):
+    // a few at first, more, bigger and faster as the disaster nears. Behind the page, so
+    // the board hides them; they burn out in a puff of dust at the horizon.
+    const rate = f.up.stage === "testing" ? 3 : 0.4 + 3 * a * a;
     if (Math.random() < dtS * rate) {
-      const dir = Math.random() < 0.7 ? -region.from : region.from;
-      this.embers.push(mote(vx, craterY, dir * (20 + 60 * Math.random()), -(70 + 150 * a * Math.random()), 2.5, 1.2 + 2 * Math.random()));
+      const vy = 50 + 90 * a + 30 * Math.random();
+      // Start anywhere above the page, shifted upwind so the slant still crosses it.
+      const x = Math.random() * f.width - side * 0.3 * f.height;
+      this.shower.push({ x, y: -20, vx: side * vy * 0.45, vy, r: 2 + 3.5 * Math.random() * (0.5 + a), trail: [] });
     }
-    this.updateMotes(this.embers, dtS, 120);
-    this.drawMotes(back, this.embers, FX.fire, 1);
+    for (const m of this.shower) {
+      m.x += m.vx * dtS;
+      m.y += m.vy * dtS;
+      m.trail.push({ x: m.x, y: m.y });
+      if (m.trail.length > 14) m.trail.shift();
+      if (m.y >= ground) this.dust.push(mote(m.x, ground, m.vx * 0.2, -15, 1.2, 3 + m.r));
+    }
+    this.shower = this.shower.filter((m) => m.y < ground && m.x > -200 && m.x < f.width + 200);
+    for (const m of this.shower) drawFireball(back, m.x, m.y, m.r, m.trail);
 
-    // The final approach: one big fireball from the crater to the board edge.
+    // The final approach: one big fireball dives out of the sky to the board edge.
     if (f.up.stage === "final") {
       const target = this.firstMeteorEntry(f);
       const u = easeInOut(f.up.final);
-      const p0 = { x: vx, y: craterY };
-      const c = { x: (vx + target.x) / 2, y: Math.min(craterY, target.y) - 220 };
-      const x = (1 - u) ** 2 * p0.x + 2 * (1 - u) * u * c.x + u * u * target.x;
-      const y = (1 - u) ** 2 * p0.y + 2 * (1 - u) * u * c.y + u * u * target.y;
+      const from = { x: target.x - side * 0.6 * target.y, y: -40 };
+      const x = lerp(from.x, target.x, u);
+      const y = lerp(from.y, target.y, u);
       this.flyerTrail.push({ x, y });
       if (this.flyerTrail.length > 18) this.flyerTrail.shift();
       drawFireball(front, x, y, lerp(5, FIRST_METEOR_RADIUS_PX * this.scale(f) * 1.4, u), this.flyerTrail);
@@ -464,12 +437,30 @@ export class Backdrop {
     }
     back.restore();
 
+    // The big bad wolf, upwind of the board: he walks in while you build, huffs (his cheeks
+    // fill) through the final approach, then puffs the wind across the board on every gust.
+    const region = this.region(f);
+    const R = Math.min(130, region.width * 0.36);
+    // Centre his head + snout (local x −0.72R…1.18R) in the open space.
+    const wolfX = lerp(region.from < 0 ? -2 * R : f.width + 2 * R, region.center - side * 0.23 * R, easeInOut(a));
+    const wolfY = ground - R;
+    const blowing = f.view?.type === "wind" ? f.view : null;
+    const puff = blowing
+      ? gust
+      : f.up.stage === "final"
+        ? 0.3 + 0.7 * f.up.final
+        : 0.2 + 0.1 * Math.sin(f.now / 600);
+    drawWolf(back, wolfX, wolfY, R, side, puff, f.height);
+    const mouth = { x: wolfX + side * 1.02 * R, y: wolfY + 0.11 * R };
+    const breath = blowing ? gust * (0.5 + 0.5 * blowing.strength) : f.up.stage === "final" ? 0.25 * f.up.final : 0;
+
     // Streaks and leaves over the page, never over the board.
     front.save();
     front.beginPath();
     front.rect(0, 0, f.width, f.height);
     front.rect(f.board.left, f.board.top, f.board.width, f.board.height);
     front.clip("evenodd");
+    drawWolfBreath(front, mouth.x, mouth.y, side, Math.abs(region.edgeX - mouth.x) + 40, breath, f.now);
     const span = f.width + 300;
     const streaks = Math.round(6 + 70 * a);
     front.lineCap = "round";

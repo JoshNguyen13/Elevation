@@ -22,6 +22,20 @@ Landings and hits are `impact` events with `meteor: true` (every disaster body's
 - Open:
 -->
 
+## 2026-10-25 · Matthew/Joshua (+ Claude Code) · physics/score-weights (wind wolf)
+- Changed:
+  - **A big bad wolf blows the wind:** `drawWolf()` / `drawWolfBreath()` in `disasterArt.ts`, placed by the backdrop's `wind()`.
+    - He stands beside the board on the upwind side (`region()`, like the cat), facing the board, and walks in with the build-up (`approach`).
+    - His cheeks fill through the final approach; in the test they puff with each gust (`view().gust`), and his breath streams from his mouth to the board's edge (over the page only, never the board).
+  - **View only:** no change to the wind's physics or cues. Mirrored for wind from the right (checked with seed 7).
+  - **Meteor backdrop is a meteor shower, not a volcano.**
+    - Fireballs with trails fall slowly across the sky in the real meteors' direction (`side`): sparse at first, more, bigger and faster with `approach`, steady in the test.
+    - They're drawn behind the page (the board hides them) and burn out in dust at the horizon.
+    - The final approach is one big fireball diving out of the sky to the first meteor's entry point.
+    - The volcano, its smoke and its embers are gone.
+  - **`drawFireball()` keeps the caller's alpha** (it reset it to 1), so the backdrop's fade-out after the test now applies to fireballs.
+- Open: art is hand-drawn canvas paths (grey fur, yellow eye, ruff); tweak in `drawWolf()` if it needs more character.
+
 ## 2026-10-25 · Josh (integrator) · main (letters: wind and tornado only)
 - Changed: `doomLetters.ts`. The page text now moves only for wind (flutter, gusts, blown away at the start) and the tornado (orbit).
   - Earthquake, fat guy and cat leave the letters still.

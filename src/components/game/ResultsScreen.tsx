@@ -15,9 +15,10 @@ import {
 } from "@/lib/daily/api";
 import { getMaterial } from "@/data/materials";
 import { dayNumber, formatCountdown, msUntilRollover } from "@/lib/daily/date";
-import { hashString } from "@/lib/daily/puzzle";
+import { hashString, type DailyPuzzle } from "@/lib/daily/puzzle";
 import type { RunSummary } from "@/lib/daily/run";
 import { setLocalDisplayName } from "@/lib/daily/storage";
+import ParCard from "./ParCard";
 import styles from "./ResultsScreen.module.css";
 
 const PREVIEW_ROWS = 5;
@@ -25,8 +26,8 @@ const FULL_ROWS = 25;
 
 interface ResultsScreenProps {
   run: RunSummary;
-  // The day's pieces, for the "Did you know?" fact.
-  itemIds: string[];
+  // The day's puzzle: its pieces for the "Did you know?" fact, and the best tower found (ParCard).
+  puzzle: DailyPuzzle;
   deviceId: string;
   displayName: string | null;
   // Supabase is configured: the standing and leaderboard are real.
@@ -67,7 +68,7 @@ function hostOf(url: string) {
 // 04 — Results (Figma): score cards, percentile, today's leaderboard.
 export default function ResultsScreen({
   run,
-  itemIds,
+  puzzle,
   deviceId,
   displayName,
   online,
@@ -157,7 +158,7 @@ export default function ResultsScreen({
   else if (standing.beatPercent === null) percentile = "You're the first player today";
   else percentile = `You beat ${standing.beatPercent}% of today's players`;
 
-  const fact = factOfTheDay(run.date, itemIds);
+  const fact = factOfTheDay(run.date, puzzle.itemIds);
   const factHost = fact?.source ? hostOf(fact.source) : null;
 
   return (
@@ -188,6 +189,7 @@ export default function ResultsScreen({
             <p className={styles.combined}>{run.combined}</p>
             <p className={styles.percentile}>{percentile}</p>
           </section>
+          <ParCard puzzle={puzzle} yourScore={run.combined} />
           {fact && (
             <section className={styles.factCard} aria-label="Did you know?">
               <p className={styles.cardLabel}>DID YOU KNOW? · {fact.name.toUpperCase()}</p>

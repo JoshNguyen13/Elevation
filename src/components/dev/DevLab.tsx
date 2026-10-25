@@ -8,6 +8,7 @@ import { resetTutorialSeen } from "@/lib/daily/storage";
 import { pieceScale } from "@/lib/game/dailyScale";
 import { boundsOf, longestDimension, shapeOutline } from "@/lib/game/geometry";
 import { glyph } from "@/lib/game/icon";
+import { runPar, solvePar, storedPar, type ParEntry, type ParOutcome, type ParProgress } from "@/lib/game/parSolver";
 import { BUILD_DURATION_S, DAILY_PIECE_COUNT } from "@/lib/physics/constants";
 import { DISASTER_NAMES, DISASTER_TYPES } from "@/lib/physics/disasters";
 import type { DisasterType } from "@/lib/supabase/types";
@@ -68,6 +69,18 @@ function shuffled<T>(items: T[]): T[] {
 
 const noSubscribe = () => () => {};
 
+const describePar = (o: ParOutcome) =>
+  `score ${o.combined} · ${o.band} ${o.heightM.toFixed(1)} m · ${o.collapsed ? `collapsed at ${o.survivedS.toFixed(0)}s` : "survived"}`;
+
+function download(name: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 // Dev Lab (/dev): pick any pieces, disaster and build time, then play the run through the
 // real game screens. Always practice: nothing is saved or submitted.
 export default function DevLab() {
@@ -95,7 +108,30 @@ function Lab() {
     return { pxPerMeter, min: Math.min(...px), max: Math.max(...px) };
   }, [setup]);
 
-  const update =(patch: Partial<Setup>) => setSetup({ ...setup, ...patch });
+  // Par for this exact setup (the results screen's "best tower found"): stored, and what it replays to now.
+  const parPuzzle = useMemo(
+    () => ({ date: setup.date, itemIds: setup.itemIds, disaster: setup.disaster, seedNumber: setup.seed }),
+    [setup],
+  );
+  const stored = useMemo(() => {
+    const entry = storedPar(parPuzzle);
+    return entry && { entry, now: runPar(parPuzzle, entry.moves, entry.waitSteps) };
+  }, [parPuzzle]);
+  const [solving, setSolving] = useState<ParProgress | null>(null);
+  const [solved, setSolved] = useState<ParEntry | null>(null);
+  const computePar = async () => {
+    setSolved(null);
+    setSolving({ pieces: 0, builds: 0, bestCombined: 0 });
+    const entry = await solvePar(parPuzzle, setSolving);
+    setSolving(null);
+    setSolved(entry);
+    if (entry) download(`par-${parPuzzle.date}.json`, JSON.stringify({ [parPuzzle.date]: entry }, null, 2));
+  };
+
+  const update =(patch: Partial<Setup>) => {
+    setSolved(null);
+    setSetup({ ...setup, ...patch });
+  };
 
   const start = (startAt: DevRun["startAt"]) => {
     const puzzle: DailyPuzzle = {
@@ -279,6 +315,43 @@ function Lab() {
             </button>
           ))}
           <span className={styles.muted}>&quot;Start Early&quot; or __elevation.endBuild() also ends the build.</span>
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2>
+          Par <span className={styles.muted}>(the best tower the solver finds; the results screen shows and replays it)</span>
+        </h2>
+        <div className={styles.row}>
+          <button
+            type="button"
+            className={styles.chip}
+            disabled={solving !== null || setup.itemIds.length === 0}
+            onClick={computePar}
+          >
+            {solving ? "Solving…" : "Compute par"}
+          </button>
+          {solving ? (
+            <span className={styles.muted}>
+              {solving.pieces} pieces deep · {solving.builds} towers tried · best score so far {solving.bestCombined}
+            </span>
+          ) : solved ? (
+            <span className={styles.muted}>
+              Found {describePar(solved.outcome)} ({solved.builds} towers tried). Downloaded par-{setup.date}.json: add
+              it with <code>npm run par:merge -- &lt;file&gt;</code>.
+            </span>
+          ) : !stored ? (
+            <span className={styles.muted}>No par stored for {setup.date} with these pieces, disaster and seed.</span>
+          ) : !stored.now ? (
+            <span className={styles.warn}>The stored par no longer plays (a move is refused). Compute it again.</span>
+          ) : stored.now.combined !== stored.entry.outcome.combined ? (
+            <span className={styles.warn}>
+              The stored par now replays to {describePar(stored.now)} (was {stored.entry.outcome.combined}): the game
+              changed. Compute it again.
+            </span>
+          ) : (
+            <span className={styles.muted}>Stored: {describePar(stored.now)}. Replays identically.</span>
+          )}
         </div>
       </section>
 

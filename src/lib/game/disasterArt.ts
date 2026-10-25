@@ -16,7 +16,147 @@ export const FX = {
   dust: "#c9c3b8",
   leaf: "#8fb573",
   smoke: "#d6d6db",
+  wolf: "#8e939c",
+  wolfDark: "#5e636c",
+  wolfLight: "#d9dbe0",
+  wolfEye: "#f5d547",
 } as const;
+
+// The big bad wolf, side-on, head centred at (x, y), facing `facing` (1 = right). `puff`
+// 0–1 fills his cheeks and rounds his lips to blow. His chest runs down to `bottomY`.
+export function drawWolf(ctx: CanvasRenderingContext2D, x: number, y: number, R: number, facing: 1 | -1, puff: number, bottomY: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(facing, 1);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.strokeStyle = colors.ink;
+  ctx.lineWidth = Math.max(2, R * 0.03);
+  const outline = (fill: string) => {
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  // Neck widening into broad shoulders, down off the bottom of the page.
+  const depth = bottomY - y + R;
+  ctx.beginPath();
+  ctx.moveTo(-0.55 * R, -0.2 * R);
+  ctx.bezierCurveTo(-1.1 * R, 0.3 * R, -1.7 * R, 0.9 * R, -1.8 * R, depth);
+  ctx.lineTo(0.75 * R, depth);
+  ctx.bezierCurveTo(0.75 * R, 1.1 * R, 0.35 * R, 0.8 * R, 0.3 * R, 0.4 * R);
+  ctx.closePath();
+  outline(FX.wolf);
+  // A ruff of lighter fur under the jaw.
+  ctx.beginPath();
+  ctx.moveTo(-0.55 * R, 0.25 * R);
+  for (let i = 0; i <= 6; i++) {
+    const k = i / 6;
+    ctx.lineTo((-0.55 + 0.85 * k) * R, (0.25 + 0.2 * k + (i % 2 ? 0.22 : 0)) * R);
+  }
+  ctx.lineTo(0.3 * R, 0.3 * R);
+  ctx.closePath();
+  outline(FX.wolfLight);
+
+  // Ears: the far one darker, behind the head.
+  for (const [dx, fill] of [[-0.2, FX.wolfDark], [0, FX.wolf]] as const) {
+    ctx.beginPath();
+    ctx.moveTo((dx - 0.32) * R, -0.38 * R);
+    ctx.lineTo((dx - 0.22) * R, -1.12 * R);
+    ctx.lineTo((dx + 0.08) * R, -0.45 * R);
+    ctx.closePath();
+    outline(fill);
+  }
+  ctx.beginPath();
+  ctx.moveTo(-0.2 * R, -0.48 * R);
+  ctx.lineTo(-0.2 * R, -0.9 * R);
+  ctx.lineTo(0, -0.5 * R);
+  ctx.closePath();
+  ctx.fillStyle = FX.wolfDark;
+  ctx.fill();
+
+  // Head, then the long snout reaching toward the board.
+  ctx.beginPath();
+  ctx.ellipse(-0.1 * R, 0, 0.62 * R, 0.55 * R, 0, 0, Math.PI * 2);
+  outline(FX.wolf);
+  ctx.beginPath();
+  ctx.moveTo(0.2 * R, -0.34 * R);
+  ctx.quadraticCurveTo(0.7 * R, -0.3 * R, 1.05 * R, -0.2 * R);
+  ctx.quadraticCurveTo(1.18 * R, -0.12 * R, 1.08 * R, 0.08 * R);
+  ctx.quadraticCurveTo(0.75 * R, 0.2 * R, 0.35 * R, 0.28 * R);
+  ctx.closePath();
+  outline(FX.wolf);
+
+  // Puffed cheek at the root of the snout, swelling with each breath.
+  ctx.beginPath();
+  ctx.ellipse(0.38 * R, 0.08 * R, (0.13 + 0.1 * puff) * R, (0.11 + 0.08 * puff) * R, 0, 0, Math.PI * 2);
+  outline(FX.wolfLight);
+
+  // Nose on the tip; lips pursed into an O under it, rounder the harder he blows.
+  ctx.beginPath();
+  ctx.ellipse(1.08 * R, -0.15 * R, 0.08 * R, 0.06 * R, 0, 0, Math.PI * 2);
+  ctx.fillStyle = colors.ink;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0.98 * R, 0.11 * R, (0.035 + 0.03 * puff) * R, (0.03 + 0.04 * puff) * R, 0, 0, Math.PI * 2);
+  outline(FX.wolfDark);
+
+  // A narrowed yellow eye under a scowling brow.
+  ctx.beginPath();
+  ctx.ellipse(0.12 * R, -0.2 * R, 0.1 * R, 0.065 * R, -0.15, 0, Math.PI * 2);
+  outline(FX.wolfEye);
+  ctx.beginPath();
+  ctx.arc(0.16 * R, -0.2 * R, 0.035 * R, 0, Math.PI * 2);
+  ctx.fillStyle = colors.ink;
+  ctx.fill();
+  ctx.lineWidth = Math.max(2, R * 0.05);
+  ctx.beginPath();
+  ctx.moveTo(-0.02 * R, -0.36 * R);
+  ctx.lineTo(0.28 * R, -0.25 * R);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// The wolf's breath: streaks and puffs fanning out from his mouth at (x, y) toward
+// `facing`, `length` px long. `strength` 0–1 sets how many, how fast and how visible.
+export function drawWolfBreath(ctx: CanvasRenderingContext2D, x: number, y: number, facing: 1 | -1, length: number, strength: number, now: number) {
+  if (strength <= 0) return;
+  const rand = (i: number, salt: number) => {
+    const s = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  ctx.save();
+  ctx.lineCap = "round";
+  // The caller's alpha (the backdrop fades out after the test).
+  const base = ctx.globalAlpha;
+  const count = Math.round(6 + 18 * strength);
+  for (let i = 0; i < count; i++) {
+    // How far along the breath this streak is, 0 at the mouth.
+    const t = (now * 0.0008 * (1 + 1.5 * strength) * (0.7 + 0.6 * rand(i, 1)) + rand(i, 2)) % 1;
+    const spread = (rand(i, 3) * 2 - 1) * 0.35 * t * length;
+    const px = x + facing * t * length;
+    const py = y + spread + Math.sin(now * 0.004 + i) * 4 * t;
+    const fadeIn = Math.min(1, t * 6);
+    const alpha = base * (1 - t) * fadeIn * (0.25 + 0.6 * strength);
+    if (i % 3 === 0) {
+      ctx.fillStyle = FX.smoke;
+      ctx.globalAlpha = alpha * 0.8;
+      ctx.beginPath();
+      ctx.arc(px, py, 3 + 10 * t * (0.5 + strength), 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = colors.textMuted;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 1.5 + strength;
+      const len = 14 + 36 * strength;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.quadraticCurveTo(px - (facing * len) / 2, py - 4, px - facing * len, py);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
 
 // The fat guy in a cannonball: a round body (the hitbox), head tucked on top, arms
 // hugging his knees, accent-blue trunks. `squash` 0–1 flattens him on landing.
@@ -144,9 +284,11 @@ export function drawFireball(
 ) {
   ctx.save();
   ctx.lineCap = "round";
+  // The caller's alpha (the backdrop fades out after the test).
+  const base = ctx.globalAlpha;
   for (let i = 1; i < trail.length; i++) {
     const k = i / trail.length;
-    ctx.globalAlpha = k * 0.85;
+    ctx.globalAlpha = base * k * 0.85;
     ctx.strokeStyle = k > 0.6 ? FX.fire : FX.fireDeep;
     ctx.lineWidth = r * 1.8 * k;
     ctx.beginPath();
@@ -154,7 +296,7 @@ export function drawFireball(
     ctx.lineTo(trail[i].x, trail[i].y);
     ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = base;
   const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 1.9);
   glow.addColorStop(0, "rgba(255, 176, 102, 0.55)");
   glow.addColorStop(1, "rgba(255, 176, 102, 0)");

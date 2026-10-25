@@ -53,7 +53,13 @@ export const BUILD_DURATION_S = 120; // §2.1
 export const SETTLE_DURATION_S = 1.5; // TBD §4.6
 // Pause on the measured height before the disaster starts.
 export const HEIGHT_REVEAL_S = 2;
-export const ROTATION_STEP_DEG = 1; // TBD §2.2 — fine steps; holding Q/E repeats
+// §2.2 Q/E: a tap turns ROTATION_STEP_DEG (fine placement); holding turns smoothly at
+// ROTATION_SPEED_DEG_S after ROTATION_HOLD_DELAY_MS, instead of the OS key repeat (~11°/s
+// at macOS defaults with 1° steps). A rotate click sounds every ROTATION_TICK_DEG.
+export const ROTATION_STEP_DEG = 1;
+export const ROTATION_SPEED_DEG_S = 120;
+export const ROTATION_HOLD_DELAY_MS = 150;
+export const ROTATION_TICK_DEG = 15;
 
 // Matter uses the higher frictionStatic of two touching bodies, so this sets how
 // hard resting pieces are to nudge off each other, whatever their kinetic friction.

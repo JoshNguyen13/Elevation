@@ -19,7 +19,7 @@ export interface ScoreRow {
   date: string; // YYYY-MM-DD
   height_score: number;
   stability_score: number; // 0.0–5.0 (§5.2)
-  combined_score: number; // 50/50 height + stability (§5.3)
+  combined_score: number; // 65% height + 35% stability, gated by height (§5.3, scoring.ts)
   created_at: string;
 }
 

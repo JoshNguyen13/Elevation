@@ -30,9 +30,18 @@ export interface TestResult {
   collapsed: boolean;
   // 0.0–5.0 (§5.2).
   stability: number;
-  // 0–100: height % and stability normalized to 0–100, averaged (§5.3 default, TBD).
+  // 0–100: height % and stability normalized to 0–100, weighted HEIGHT_WEIGHT / STABILITY_WEIGHT,
+  // with stability gated by height (§5.3).
   combined: number;
 }
+
+// §5.3 combined score weights (sum to 1): height counts for more than surviving the disaster.
+export const HEIGHT_WEIGHT = 0.65;
+export const STABILITY_WEIGHT = 0.35;
+// Stability only counts in full once the tower reaches this height %, and in proportion
+// below it: a lone block can't fall, so surviving alone would otherwise be free points.
+// Measured (6 disasters): 1 block averaged 33 of 100 under plain 65/35, 12 gated; 6-block towers 55 either way.
+export const FULL_STABILITY_HEIGHT_PERCENT = 50;
 
 // §5.2 starting formula: stability = 5 × min(time_survived / max_test_duration, 1).
 export function stabilityScore(survivedS: number, maxTestS: number): number {
@@ -40,5 +49,6 @@ export function stabilityScore(survivedS: number, maxTestS: number): number {
 }
 
 export function combinedScore(heightPercent: number, stability: number): number {
-  return Math.round((heightPercent + (stability / 5) * 100) / 2);
+  const gate = Math.min(1, heightPercent / FULL_STABILITY_HEIGHT_PERCENT);
+  return Math.round(HEIGHT_WEIGHT * heightPercent + STABILITY_WEIGHT * (stability / 5) * 100 * gate);
 }

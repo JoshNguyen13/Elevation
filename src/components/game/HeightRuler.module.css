@@ -13,6 +13,13 @@
   align-items: center;
   gap: 8px;
   transform: translateY(-50%);
+  transition: opacity 120ms ease-out;
+}
+
+/* Panned or zoomed out of the board's strip. */
+.band[data-hidden],
+.live[data-hidden] {
+  opacity: 0;
 }
 
 .tick {
@@ -44,7 +51,8 @@
   align-items: center;
   gap: 4px;
   transform: translateY(-50%);
-  transition: top 160ms ease-out;
+  /* No transition on top: it has to move with the board when panning. */
+  transition: opacity 120ms ease-out;
 }
 
 .liveValue {

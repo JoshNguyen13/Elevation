@@ -1,0 +1,115 @@
+{
+  "2026-10-25": {
+    "itemIds": [
+      "elephant",
+      "brick",
+      "piano",
+      "car-tire",
+      "bicycle",
+      "soccer-ball",
+      "ketchup-bottle",
+      "bucket",
+      "triangle",
+      "square"
+    ],
+    "disaster": "meteor",
+    "seed": 3132454972,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 176,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 183,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 197,
+        "angleDeg": 0
+      },
+      {
+        "slot": 1,
+        "x": 178,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 188,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 56.47336808421798,
+      "heightM": 7.0876608937947925,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 72
+    },
+    "builds": 3206,
+    "solvedAt": "2026-10-25T16:17:24.829Z"
+  },
+  "2026-11-07": {
+    "itemIds": [
+      "elephant",
+      "brick",
+      "refrigerator",
+      "microwave-oven",
+      "piano",
+      "tennis-ball",
+      "traffic-cone",
+      "car-tire",
+      "square",
+      "triangle"
+    ],
+    "disaster": "cat",
+    "seed": 2830369985,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 212,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 218,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 194,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 210,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 217,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 55.181534761541954,
+      "heightM": 7.297736798225496,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 71
+    },
+    "builds": 3213,
+    "solvedAt": "2026-10-25T16:18:09.783Z"
+  }
+}

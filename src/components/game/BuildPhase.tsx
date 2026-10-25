@@ -9,6 +9,7 @@ import { boundsOf, shapeCentroid, transformOutline, type Vec } from "@/lib/game/
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
 import { runFromSnapshot, type RunSummary } from "@/lib/daily/run";
 import { sound } from "@/lib/juice";
+import { ROTATION_HOLD_DELAY_MS, ROTATION_SPEED_DEG_S } from "@/lib/physics/constants";
 import { colors } from "@/lib/theme";
 import Button from "@/components/ui/Button";
 import BoardCanvas from "./BoardCanvas";
@@ -200,13 +201,31 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
     return () => cancelAnimationFrame(frame);
   }, [isHolding, session, view, followPointer]);
 
-  // Q / E rotate the held piece, or the one just placed (§2.2). Esc cancels a drag.
+  // Q / E rotate the held piece, or the one just placed (§2.2): a tap is one fine step,
+  // holding turns smoothly every frame (not the OS key repeat). Esc cancels a drag.
   // Ctrl/Cmd + = / - / 0 zoom in, out and reset (instead of zooming the page). Space held = hand tool.
   useEffect(() => {
     const setHand = (on: boolean) => {
       spaceHeld.current = on;
       const canvas = canvasRef.current;
       if (canvas && !panFrom.current) canvas.style.cursor = on ? "grab" : "";
+    };
+    let turning: { dir: 1 | -1; since: number; last: number } | null = null;
+    let frame = 0;
+    const turn = (now: number) => {
+      if (!turning) return;
+      if (now - turning.since >= ROTATION_HOLD_DELAY_MS) {
+        session.rotateBy((turning.dir * ROTATION_SPEED_DEG_S * Math.PI * (now - turning.last)) / 180_000);
+      }
+      turning.last = now;
+      frame = requestAnimationFrame(turn);
+    };
+    const startTurning = (dir: 1 | -1) => {
+      session.rotate(dir);
+      const now = performance.now();
+      turning = { dir, since: now, last: now };
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(turn);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -225,14 +244,19 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
         // Also keeps Space from scrolling the page or pressing a focused button.
         e.preventDefault();
         if (!e.repeat) setHand(true);
-      } else if (key === "q") session.rotate(-1);
-      else if (key === "e") session.rotate(1);
-      else if (key === "escape") session.cancel();
+      } else if (key === "q" || key === "e") {
+        if (!e.repeat) startTurning(key === "q" ? -1 : 1);
+      } else if (key === "escape") session.cancel();
     };
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.key === " ") setHand(false);
+      const key = e.key.toLowerCase();
+      if (key === " ") setHand(false);
+      else if (turning && key === (turning.dir < 0 ? "q" : "e")) turning = null;
     };
-    const onBlur = () => setHand(false);
+    const onBlur = () => {
+      setHand(false);
+      turning = null;
+    };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
@@ -240,6 +264,7 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
+      cancelAnimationFrame(frame);
     };
   }, [session, view, followPointer]);
 
@@ -370,6 +395,7 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
         <HeightRuler
           activeBand={result?.band ?? (phase === "build" ? snapshot.live?.band : undefined)}
           live={phase === "build" ? snapshot.live : null}
+          view={viewState}
         />
         <div className={styles.play}>
           <div className={styles.boardWrap}>

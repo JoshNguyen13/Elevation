@@ -15,6 +15,7 @@ import {
   MAX_TEST_DURATION_S,
   PHYSICS_STEP_MS,
   ROTATION_STEP_DEG,
+  ROTATION_TICK_DEG,
   SETTLE_DURATION_S,
 } from "@/lib/physics/constants";
 import {
@@ -53,6 +54,14 @@ export type PieceStatus = "tray" | "held" | "placed" | "lost";
 // Disaster playback speed multipliers.
 export const SIM_SPEEDS = [1, 2, 4] as const;
 export type SimSpeed = (typeof SIM_SPEEDS)[number];
+// The default playback: real time for the first hits, then faster the longer the tower
+// holds. Measured on 18 test runs (3–75s survived): watched in 3–24s, median 16s; fixed 4x
+// played a 3s knock-down in 0.8s, and 1x took up to 75s.
+const AUTO_SPEED: { fromS: number; speed: SimSpeed }[] = [
+  { fromS: 0, speed: 1 },
+  { fromS: 4, speed: 2 },
+  { fromS: 12, speed: 4 },
+];
 
 // build → (timer hits 0) → settling → (SETTLE_DURATION_S) → measured → (HEIGHT_REVEAL_S)
 // → testing → (collapse or MAX_TEST_DURATION_S) → done
@@ -140,6 +149,7 @@ export interface BuildSessionOptions {
 }
 
 const ROTATION_STEP_RAD = (ROTATION_STEP_DEG * Math.PI) / 180;
+const ROTATION_TICK_RAD = (ROTATION_TICK_DEG * Math.PI) / 180;
 
 // Placeholder until the daily seed exists (Phase 5, §6). Mirrors the Figma tray.
 const PLACEHOLDER_MATERIAL_IDS = Array.from(
@@ -173,6 +183,10 @@ export class BuildSession {
   private nextSeq = 0;
   private stepBacklogMs = 0;
   private speed: SimSpeed = 1;
+  // Follow AUTO_SPEED until the player picks a speed.
+  private autoSpeed = true;
+  // Radians turned since the last rotate click (holding Q/E turns a little every frame).
+  private rotatedSinceClick = 0;
   private phase: Phase = "build";
   private buildMsLeft = BUILD_DURATION_S * 1000;
   private readonly buildMsTotal: number;
@@ -399,6 +413,11 @@ export class BuildSession {
     return this.towerUids.length === 0 ? 1 : 1 - this.fallen.size / this.towerUids.length;
   }
 
+  // Every placed piece's outline in board px (the par solver finds where the next piece rests).
+  placedOutlines(): Vec[][] {
+    return this.placedPieces().map((p) => this.world.vertices(p.uid));
+  }
+
   // Debug view for tests and the console (window.__elevation in dev).
   debugPieces() {
     return this.pieces.map((p) => ({
@@ -452,18 +471,22 @@ export class BuildSession {
     this.emit();
   }
 
-  // 1 = clockwise (E), -1 = counter-clockwise (Q). §2.2
+  // One tap of Q/E: ROTATION_STEP_DEG. 1 = clockwise (E), -1 = counter-clockwise (Q). §2.2
   rotate(direction: 1 | -1) {
+    this.rotateBy(direction * ROTATION_STEP_RAD, true);
+  }
+
+  // Turns the held piece, or the piece just placed (still frozen) if it still fits, by
+  // `delta` radians. Holding Q/E calls this every frame; it clicks every ROTATION_TICK_DEG.
+  rotateBy(delta: number, click = false) {
     if (!this.building) return;
-    const delta = direction * ROTATION_STEP_RAD;
     if (this.held) {
       this.held = { ...this.held, angle: this.held.angle + delta };
-      this.juice({ kind: "rotate" });
+      this.rotateClick(delta, click);
       this.emit();
       return;
     }
 
-    // Nothing held: rotate the piece just placed (it's still frozen), if it still fits.
     const uid = this.frozenUid;
     if (!uid) return;
     const pose = this.world.pose(uid);
@@ -471,8 +494,15 @@ export class BuildSession {
     const outline = transformOutline(this.outline(this.piece(uid).materialId), pose.x, pose.y, angle);
     if (isInsideBoard(outline) && this.isClear(outline, uid)) {
       this.world.setAngle(uid, angle);
-      this.juice({ kind: "rotate" });
+      this.rotateClick(delta, click);
     }
+  }
+
+  private rotateClick(delta: number, click: boolean) {
+    this.rotatedSinceClick += Math.abs(delta);
+    if (!click && this.rotatedSinceClick < ROTATION_TICK_RAD) return;
+    this.rotatedSinceClick = 0;
+    this.juice({ kind: "rotate" });
   }
 
   drop() {
@@ -657,9 +687,19 @@ export class BuildSession {
   }
 
   // Disaster playback speed (Clash-of-Clans style). It only runs more fixed steps per
-  // frame, so the outcome is identical at 1x, 2x and 4x.
+  // frame, so the outcome is identical at 1x, 2x and 4x. Picking one turns the auto ramp off.
   setSpeed(speed: SimSpeed) {
+    this.autoSpeed = false;
     if (this.speed === speed) return;
+    this.speed = speed;
+    this.emit();
+  }
+
+  // Until the player picks a speed, follow AUTO_SPEED for the time survived so far.
+  private followAutoSpeed() {
+    if (!this.autoSpeed || this.phase !== "testing") return;
+    const { speed } = AUTO_SPEED.findLast((s) => this.testMs >= s.fromS * 1000)!;
+    if (speed === this.speed) return;
     this.speed = speed;
     this.emit();
   }
@@ -671,6 +711,7 @@ export class BuildSession {
   // The test clock counts fixed steps, so a disaster plays out identically every run.
   step(elapsedMs: number) {
     const dt = Math.min(elapsedMs, MAX_FRAME_MS);
+    this.followAutoSpeed();
     const speed = this.phase === "testing" ? this.speed : 1;
     this.stepBacklogMs = Math.min(this.stepBacklogMs + dt * speed, MAX_FRAME_MS * speed);
     while (this.stepBacklogMs >= PHYSICS_STEP_MS) {

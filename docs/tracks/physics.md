@@ -9,6 +9,64 @@ Newest first. One entry per session or PR: date · who · branch · what changed
 - Open:
 -->
 
+## 2026-10-25 · Matthew/Joshua (+ Claude Code) · physics/score-weights (par: best tower found)
+- Changed:
+  - **`src/lib/game/parSolver.ts`, a par solver.**
+    - It plays a day's puzzle through the real `BuildSession` with player moves only (`pickUpFromTray` / `rotateBy` / `movePointer` / `drop`, then 90 fixed steps), so every rule and the physics apply unchanged.
+    - Greedy beam search (width 3): every remaining material × 4 rotations × 7 x-offsets around the tower's top. Each candidate gets the real disaster test and is ranked by combined score.
+    - Candidates must still have every piece on the tower after settling, and a survivor must still stand 2s after the test.
+    - `BuildSession.placedOutlines()` was added for it.
+  - **Dev Lab "Par" section.**
+    - It shows whether this exact setup has a stored par and whether it still replays to the same score (or flags it as changed).
+    - **Compute par** solves in the browser (1–2 min, with progress) and downloads `par-<date>.json`. `npm run par:merge -- <file>` adds it to `src/data/par.generated.json` (keyed by date).
+  - **Results screen: `ParCard`, "Best tower found".**
+    - It shows score, band, height and survival next to yours.
+    - Shown only when the stored entry matches the day's pieces, disaster and seed, and its moves still play. It replays them on load (~0.1s), so its numbers always match the current game.
+    - **Watch it** opens a pop-up board that builds the tower instantly (exact steps) and plays the disaster live, with Replay and Close (or Esc).
+  - `ResultsScreen` takes `puzzle` instead of `itemIds`.
+- Tried / numbers:
+  - **Headless speed:** a build + full test takes ~57ms, ~0.045ms per physics step.
+  - **Optimising height only was a poor search:** 10-27 reached 60% but collapsed in 2.1s (combined 40).
+  - **Optimising combined score:** 10-27 → 63, 11-07 → 69/73, 11-17 → 57. Hand-stacked test towers scored ~40–55.
+  - **Replays are identical:** the same moves gave the same result every time (including in the visible game, 6.83 m both times).
+  - **The first 11-07 par (73) "survived" on the collapse rule:** 2 of 8 pieces lost, under the 50% threshold. It then toppled 1s after 75s, so the replay looked wrong. With the 2s aftermath check, 11-07 is **69: Plateau 7.0 m, collapsed at 74s**, and the replay ends as labelled.
+- Open:
+  - **Par is the best found, not a proven maximum:** positions and angles are sampled, and only one tower is placed per spot.
+  - **Par is per date and by hand:** stored for 2026-10-25 (meteor, 72: Plateau 7.1 m, survived) and 2026-11-07 (cat, 71: Plateau 7.3 m, survived). Compute others in the Dev Lab; pick the date with the date picker, so the real seed is used.
+  - **Recomputed after main's resting change (bc98994):** the old pars replayed to 62 (was 71) and 39 (was 69), and the Dev Lab flagged both. A par computed from a hand-picked setup (Dev Lab default seed 1) never matches the real day, so it isn't shown.
+  - **After a physics, materials or disaster change,** the Dev Lab flags a stale par; recompute it.
+  - **The par towers expose a game-rule edge:** a tower can lose up to half its pieces and still score full stability, and one can fall right after 75s and still count as survived.
+
+## 2026-10-25 · Matthew/Joshua (+ Claude Code) · physics/score-weights
+- Changed:
+  - **Combined score (§5.3) = 65% height + 35% stability, with stability gated by height:** `0.65·h + 35·(survived/75)·min(1, h/50)` (`HEIGHT_WEIGHT`, `STABILITY_WEIGHT`, `FULL_STABILITY_HEIGHT_PERCENT` in `scoring.ts`). It was 50/50, which let a lone block (it can't fall) beat real towers.
+  - **Disaster playback follows an auto ramp** until the player picks 1x/2x/4x: 1x for the first 4s survived, 2x until 12s, then 4x (`AUTO_SPEED` in `buildSession.ts`). The buttons highlight the current speed.
+  - **Q/E:** a tap still turns 1°; holding turns smoothly at 120°/s after 150ms (a frame loop in `BuildPhase.tsx` instead of the OS key repeat), clicking every 15° (`ROTATION_*` in `constants.ts`, `rotateBy()` on the session).
+  - **The height ruler follows the camera:** `HeightRuler` takes the `BoardView` snapshot and places each band (and the live marker) at `(boardY − view.y) × zoom`. Marks outside the board's strip fade out. The live marker lost its 160ms `top` transition so it moves with the board. Checked: all 5 bands match the board to the px at 1x and at 2x zoom panned.
+- Tried / numbers:
+  - **Scores** (Dev Lab, 1 / 3 / 6 stacked squares × all 6 disasters):
+
+    | Formula | 1 block (10%) | 3 blocks (31%) | 6 blocks (62%) | 6 beat 1 | 6 beat 3 |
+    |---|---|---|---|---|---|
+    | 50/50 | 42.7 | 48.5 | 52.0 | 3/6 | 4/6 |
+    | 65/35 | 33.0 | 43.3 | 55.0 | 6/6 | 4/6 (+1 tie) |
+    | gated 65/35 | **12.0** | 34.3 | **55.0** | 6/6 | **6/6** |
+    | h×(0.5+0.5s) | 8.8 | 25.7 | 44.0 | 6/6 | 6/6 |
+
+  - **Watch time** over 18 test runs (3–75s survived):
+
+    | Speed | Watched |
+    |---|---|
+    | 1x | 3–75s |
+    | 4x | 0.8–19s (a 3s wind knock-down flashed by in 0.8s) |
+    | auto ramp | **3–24s, median 16s** |
+
+  - **Speed never changes the outcome:** the same step-built tower survived 35.967s (earthquake), 38.05s (cat) and 3.083s (wind) at auto, 4x and 1x alike.
+  - **Rotation, with real key events:** a tap = 1.00°; holding E ~1.1s = 111°, and OS repeats were ignored. Before: ~11°/s at macOS key-repeat defaults.
+- Open:
+  - **Mixed leaderboard:** scores already submitted keep the old formula (`combined_score` is stored, not recomputed), so a day that straddles the change mixes the two.
+  - **Disaster tuning still dominates:** wind flattens a 6-square tower in 3s, while the tornado can't topple it in 75s.
+
 ## 2026-10-25 · Josh (integrator) · main (resting: no more creep while building)
 - Changed: **resting** (`holdRestingPieces()` in `world.ts`, `REST_*` in `constants.ts`).
   - A piece calm for 30 steps (below 0.1 px/step at its centre and rim) is held where it rested. Each step the solver runs as usual, then its centre is put back, which undoes Matter's creep. **Turning stays free**, so pieces still lean, rock and tip.
