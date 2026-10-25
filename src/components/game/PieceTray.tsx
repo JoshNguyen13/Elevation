@@ -25,18 +25,21 @@ export default function PieceTray({ pieces, enabled, onPickUp }: PieceTrayProps)
       <div className={styles.slots}>
         {pieces.map((piece) => {
           const available = enabled && piece.status === "tray";
+          const { name } = getMaterial(piece.materialId);
+          // The wrapper carries the hover name, so a placed slot's dimming doesn't fade it too.
           return (
-            <button
-              key={piece.uid}
-              type="button"
-              className={styles.slot}
-              data-placed={piece.status === "tray" ? undefined : ""}
-              disabled={!available}
-              aria-label={getMaterial(piece.materialId).name}
-              onPointerDown={(e) => available && onPickUp(piece.uid, e)}
-            >
-              <PieceSvg {...glyph(piece.materialId)} fill={colors.ink} />
-            </button>
+            <div key={piece.uid} className={styles.slotWrap} data-name={name}>
+              <button
+                type="button"
+                className={styles.slot}
+                data-placed={piece.status === "tray" ? undefined : ""}
+                disabled={!available}
+                aria-label={name}
+                onPointerDown={(e) => available && onPickUp(piece.uid, e)}
+              >
+                <PieceSvg {...glyph(piece.materialId)} fill={colors.ink} />
+              </button>
+            </div>
           );
         })}
       </div>
