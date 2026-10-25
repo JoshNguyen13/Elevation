@@ -12,7 +12,7 @@ Newest first. One entry per session or PR: date · who · branch · what changed
 | `twister` | tornado | the funnel's core crosses the tower's center | the core, near the base | 0.3–1, grows over time |
 | `swat` | cat | the paw starts a strike | the board edge, swat height | 0.3–1, grows over time |
 
-Landings and hits are `impact` events with `meteor: true` (every disaster body's label starts with `meteor-`: `meteor-guy-N`, `meteor-rock-N`, `meteor-paw`). Removed: `wave` (flood is gone). Changed: `meteor-incoming` now fires at the warning, 1 s before the fireball enters, not at spawn.
+Landings and hits are `impact` events with `meteor: true` (every disaster body's label starts with `meteor-`: `meteor-guy-N`, `meteor-rock-N`, `meteor-paw`). Removed: `wave` (flood is gone). Changed: `meteor-incoming` now fires at the warning, 1 s before the fireball enters, not at spawn. `gust` now needs a gust above 0.95 and 1.5 s since the last one, and `tremor` fires once per 6 s surge instead of every shake cycle (this replaces the cueing in Preston's entry below).
 
 <!-- Template:
 ## YYYY-MM-DD · Name · disasters/<topic>
@@ -79,3 +79,18 @@ New disaster lineup and the build-up. Joshua OK'd the shared-file changes listed
   - **Docs:** `CONTEXT.md` and `docs/TEAM_PLAN.md` still mention flood and `wave` (Joshua).
   - **Hand-off sizes:** the backdrop fat guy is bigger than the body that lands (radius 15 px on the board), so there's a size jump at the hand-off.
   - **Unrelated quirk:** the build timer can tick up by a few ms on the first frame (negative frame time in `BoardCanvas`). `buildUp()` clamps it.
+  - **Numbers predate per-day gravity.** The table above was measured before the physics track's per-day gravity merged. After the merge (6-square column, seed 1), survival in seconds was wind 2.5, quake 59.2, fat guy 10.1, meteor 12.3, tornado 38.7, cat 37.6. Retune after the merge.
+  - **Sound mapping at the merge:**
+    - **Reused voices:** `fat-guy-incoming` reuses the meteor whistle, `twister` and `swat` reuse the gust, and the cat's ambience is a new purr.
+    - **Unused now:** `sound.wave()`.
+    - **Still to do:** the sound track should give the new disasters their own voices.
+
+## 2026-10-25 · Preston (sound, drafted for disasters) · disasters/raise-cues
+- Changed: wind, earthquake and flood now raise their cues, so their sounds play in real rounds.
+  - Wind: `gust` at each strong gust peak.
+  - Earthquake: `tremor` once per shake cycle.
+  - Flood: `wave` on a timer that speeds up, set by the new `FLOOD.*Wave*` constants.
+  - Cues are view-only: no forces changed, and a seeded run plays out the same.
+- Tried / numbers: first pass. Gust strength reaches 1 at about 30 s, tremor at 40 s and wave at 42 s.
+- Cues added or changed: `gust`, `tremor` and `wave` are now raised (see the list above).
+- Open: `effects.ts` could show these too (for example a dust streak on a gust, or a splash on a wave).

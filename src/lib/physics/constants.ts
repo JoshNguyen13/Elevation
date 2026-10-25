@@ -22,7 +22,17 @@ export const PLATFORM_HEIGHT_M = 0.5;
 export const PLATFORM_BOTTOM_MARGIN_M = 0.5;
 export const PLATFORM_CORNER_RADIUS_PX = 6;
 
-export const GRAVITY_Y = 1; // Matter.js default; scaled internally by gravity.scale
+// Gravity in real-world g, applied at the day's piece scale (dayGravity() in dailyScale.ts),
+// so pieces fall and topple at the same speed relative to their size every day. TBD —
+// above 1 g on purpose, for snappy stacking. Matter's default (1000 px/s²) was 0.8–4.4 g
+// depending on the day.
+export const GRAVITY_G = 2.5;
+export const STANDARD_GRAVITY = 9.81; // m/s²
+// Screen-space clamp (px/s²) for days with extreme scales. Below the floor stacks settle
+// slowly; above the cap (Matter's default) small pieces creep and stacks of them fall
+// apart (a 9–18px stack crept 1.8px at 1000, 7px at 1200, and collapsed at 1600).
+export const MIN_GRAVITY_PX_S2 = 500;
+export const MAX_GRAVITY_PX_S2 = 1000;
 
 // Matter.js is stepped manually at a fixed rate so drawing and game rules stay in sync with it.
 export const PHYSICS_STEP_MS = 1000 / 60;

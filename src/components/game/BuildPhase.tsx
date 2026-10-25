@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
-import { BOARD_WIDTH_PX } from "@/lib/game/board";
+import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX } from "@/lib/game/board";
 import { BoardView } from "@/lib/game/boardView";
 import { BuildSession, SIM_SPEEDS, type BuildSnapshot, type Held } from "@/lib/game/buildSession";
 import { getMaterial } from "@/data/materials";
@@ -19,6 +19,17 @@ import PieceTray from "./PieceTray";
 import SoundToggle from "./SoundToggle";
 import StabilityMeter from "./StabilityMeter";
 import styles from "./BuildPhase.module.css";
+
+// View movement, as in Figma / Canva. Wheel deltas in lines or pages become px; ctrl+wheel
+// (also a trackpad pinch) zooms by exp(-deltaY * WHEEL_ZOOM_RATE), with deltaY clamped to
+// WHEEL_ZOOM_MAX_DELTA so a mouse notch (~100) zooms ~18% while small pinch steps stay smooth.
+// A held piece within EDGE_SCROLL_PX of the canvas edge scrolls the view, up to
+// EDGE_SCROLL_SPEED px per frame.
+const WHEEL_LINE_PX = 16;
+const WHEEL_ZOOM_RATE = 0.005;
+const WHEEL_ZOOM_MAX_DELTA = 40;
+const EDGE_SCROLL_PX = 28;
+const EDGE_SCROLL_SPEED = 6;
 
 const formatClock = (seconds: number) =>
   `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
@@ -70,15 +81,17 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
 
   // Zoom / pan camera. View only: the session and physics always work in board px.
   const [view] = useState(() => new BoardView());
-  const { zoom } = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
+  const viewState = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
+  const { zoom } = viewState;
+  const viewMoved = viewState.zoom !== 1 || viewState.x !== 0 || viewState.y !== 0;
 
   // Console / test hook: window.__elevation.debugPieces(), window.__view
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") Object.assign(window, { __elevation: session, __view: view });
   }, [session, view]);
 
-  // Client px → board px (through the zoom), or null when the point is off the canvas.
-  const toBoard = useCallback(
+  // Client px → board px (through the zoom and pan), or null when the point is off the canvas.
+  const toView = useCallback(
     (clientX: number, clientY: number): Vec | null => {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return null;
@@ -90,21 +103,58 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
     [view],
   );
 
-  // Mouse wheel zooms toward the cursor. Native listener: React's onWheel is passive.
+  // The same, but also null over the empty margin a panned view shows around the board:
+  // for pieces, the margin counts as off the board (a drop there returns to the tray).
+  const toBoard = useCallback(
+    (clientX: number, clientY: number): Vec | null => {
+      const point = toView(clientX, clientY);
+      return point && point.x >= 0 && point.y >= 0 && point.x <= BOARD_WIDTH_PX && point.y <= BOARD_HEIGHT_PX
+        ? point
+        : null;
+    },
+    [toView],
+  );
+
+  // The view moved under a held piece: re-aim it at whatever is now under the pointer.
+  const followPointer = useCallback(() => {
+    const pointer = session.getSnapshot().held?.pointerClient;
+    if (pointer) session.movePointer(pointer, toBoard(pointer.x, pointer.y));
+  }, [session, toBoard]);
+
+  // Scroll (or two fingers) moves the view; ctrl/cmd + scroll (or a pinch) zooms toward the
+  // cursor; shift + scroll moves sideways. Native listener: React's onWheel is passive.
+  // The context menu is off: it has no use on the board.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const point = toBoard(e.clientX, e.clientY);
-      if (point) view.zoomAt(point, Math.exp(-e.deltaY * 0.002));
+      const unit = e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? canvas.clientHeight : 1;
+      if (e.ctrlKey || e.metaKey) {
+        const point = toView(e.clientX, e.clientY);
+        const delta = Math.min(Math.max(e.deltaY * unit, -WHEEL_ZOOM_MAX_DELTA), WHEEL_ZOOM_MAX_DELTA);
+        if (point) view.zoomAt(point, Math.exp(-delta * WHEEL_ZOOM_RATE));
+      } else {
+        const k = (BOARD_WIDTH_PX / canvas.clientWidth / view.zoom) * unit;
+        const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX;
+        const dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY;
+        view.panBy(dx * k, dy * k);
+      }
+      followPointer();
     };
+    const noMenu = (e: MouseEvent) => e.preventDefault();
     canvas.addEventListener("wheel", onWheel, { passive: false });
-    return () => canvas.removeEventListener("wheel", onWheel);
-  }, [toBoard, view]);
+    canvas.addEventListener("contextmenu", noMenu);
+    return () => {
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.removeEventListener("contextmenu", noMenu);
+    };
+  }, [toView, followPointer, view]);
 
-  // Dragging empty board space pans the zoomed view.
+  // Dragging empty board space, a middle drag, or any drag while Space is held (the hand
+  // tool) pans the view, at any zoom.
   const panFrom = useRef<Vec | null>(null);
+  const spaceHeld = useRef(false);
 
   // While a piece is held, follow the pointer anywhere on the page.
   const isHolding = held !== null;
@@ -127,33 +177,93 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
     };
   }, [isHolding, session, toBoard]);
 
-  // Q / E rotate the held piece, or the one just placed (§2.2). Esc cancels a drag.
+  // Holding a piece near the canvas edge scrolls toward board that's out of view, so you
+  // can carry a piece anywhere without letting go. Never scrolls into the empty margin.
   useEffect(() => {
+    if (!isHolding) return;
+    let frame = 0;
+    const tick = () => {
+      const pointer = session.getSnapshot().held?.pointerClient;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (pointer && rect && pointer.x >= rect.left && pointer.x <= rect.right && pointer.y >= rect.top && pointer.y <= rect.bottom) {
+        const push = (distance: number) => Math.max(0, 1 - distance / EDGE_SCROLL_PX);
+        const dx = push(rect.right - pointer.x) - push(pointer.x - rect.left);
+        const dy = push(rect.bottom - pointer.y) - push(pointer.y - rect.top);
+        const before = view.getSnapshot();
+        if (dx || dy) view.revealBy((dx * EDGE_SCROLL_SPEED) / view.zoom, (dy * EDGE_SCROLL_SPEED) / view.zoom);
+        if (view.getSnapshot() !== before) followPointer();
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [isHolding, session, view, followPointer]);
+
+  // Q / E rotate the held piece, or the one just placed (§2.2). Esc cancels a drag.
+  // Ctrl/Cmd + = / - / 0 zoom in, out and reset (instead of zooming the page). Space held = hand tool.
+  useEffect(() => {
+    const setHand = (on: boolean) => {
+      spaceHeld.current = on;
+      const canvas = canvasRef.current;
+      if (canvas && !panFrom.current) canvas.style.cursor = on ? "grab" : "";
+    };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
-      if (key === "q") session.rotate(-1);
+      if (e.ctrlKey || e.metaKey) {
+        const zoom = key === "=" || key === "+" ? 1.5 : key === "-" ? 1 / 1.5 : key === "0" ? 0 : null;
+        if (zoom === null || e.altKey) return;
+        e.preventDefault();
+        if (zoom === 0) view.reset();
+        else view.zoomBy(zoom);
+        followPointer();
+        return;
+      }
+      if (e.altKey) return;
+      if (key === " ") {
+        // Also keeps Space from scrolling the page or pressing a focused button.
+        e.preventDefault();
+        if (!e.repeat) setHand(true);
+      } else if (key === "q") session.rotate(-1);
       else if (key === "e") session.rotate(1);
       else if (key === "escape") session.cancel();
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === " ") setHand(false);
+    };
+    const onBlur = () => setHand(false);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [session]);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [session, view, followPointer]);
 
   const pickUpFromTray = (uid: string, e: PointerEvent<HTMLButtonElement>) => {
     e.preventDefault();
     session.pickUpFromTray(uid, { x: e.clientX, y: e.clientY }, toBoard(e.clientX, e.clientY));
   };
 
+  const startPan = (e: PointerEvent<HTMLCanvasElement>) => {
+    panFrom.current = { x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.currentTarget.style.cursor = "grabbing";
+  };
+
+  // Left button: pick up the piece under the pointer, else pan. Middle button or Space held:
+  // always pan. Right button: nothing.
   const pickUpFromBoard = (e: PointerEvent<HTMLCanvasElement>) => {
-    const point = toBoard(e.clientX, e.clientY);
-    if (point && session.pickUpAt(point, { x: e.clientX, y: e.clientY })) {
+    if (e.button === 1 || (e.button === 0 && spaceHeld.current)) {
       e.preventDefault();
-    } else if (view.zoom > 1) {
-      panFrom.current = { x: e.clientX, y: e.clientY };
-      e.currentTarget.setPointerCapture(e.pointerId);
-      e.currentTarget.style.cursor = "grabbing";
+      return startPan(e);
     }
+    if (e.button !== 0) return;
+    const point = toBoard(e.clientX, e.clientY);
+    if (point && session.pickUpAt(point, { x: e.clientX, y: e.clientY })) e.preventDefault();
+    else startPan(e);
   };
 
   const onBoardPointerMove = (e: PointerEvent<HTMLCanvasElement>) => {
@@ -166,13 +276,13 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
     }
     if (isHolding) return;
     const point = toBoard(e.clientX, e.clientY);
-    e.currentTarget.style.cursor = point && session.pieceAt(point) ? "grab" : view.zoom > 1 ? "move" : "";
+    e.currentTarget.style.cursor = spaceHeld.current ? "grab" : point && session.pieceAt(point) ? "grab" : "move";
   };
 
   const endPan = (e: PointerEvent<HTMLCanvasElement>) => {
     if (!panFrom.current) return;
     panFrom.current = null;
-    e.currentTarget.style.cursor = "";
+    e.currentTarget.style.cursor = spaceHeld.current ? "grab" : "";
   };
 
   const piecesLeft = pieces.filter((p) => p.status === "tray" || p.status === "held").length;
@@ -257,7 +367,7 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
               canvasRef={canvasRef}
               session={session}
               view={view}
-              zoomed={zoom > 1}
+              zoomed={viewMoved}
               isDragging={isHolding}
               onPointerDown={pickUpFromBoard}
               onPointerMove={onBoardPointerMove}
@@ -271,7 +381,8 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
                 type="button"
                 className={styles.zoomLevel}
                 aria-label="Reset zoom"
-                disabled={zoom === 1}
+                title="Reset view"
+                disabled={!viewMoved}
                 onClick={() => view.reset()}
               >
                 {zoom.toFixed(1)}x
@@ -286,9 +397,10 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
           <p className={styles.hint}>
             {phase === "build" ? (
               <>
-                <DoomText text="Drag a piece onto the platform. The newest piece won't fall" />
+                <DoomText text="Drag a piece onto the platform. It won't fall until you place the next." />
                 <br />
-                <DoomText text="until you place the next one. Q / E to rotate." />
+                <DoomText text="Scroll to move · Ctrl + scroll or pinch to zoom · Q / E rotate" />
+
               </>
             ) : !testing ? (
               <>

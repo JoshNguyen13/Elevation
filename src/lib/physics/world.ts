@@ -4,7 +4,6 @@ import { PLATFORM_RECT } from "@/lib/game/board";
 import type { Vec } from "@/lib/game/geometry";
 import {
   FRICTION_STATIC,
-  GRAVITY_Y,
   PLATFORM_CORNER_RADIUS_PX,
   POSITION_ITERATIONS,
   RESTITUTION,
@@ -38,16 +37,19 @@ function createPlatform(): Matter.Body {
 // The Matter.js world, in pixel space. It knows nothing about game rules
 // (freeze order, the tray, disasters) — BuildSession drives it.
 export class PhysicsWorld {
-  readonly engine = Matter.Engine.create({
-    gravity: { x: 0, y: GRAVITY_Y },
-    positionIterations: POSITION_ITERATIONS,
-    velocityIterations: VELOCITY_ITERATIONS,
-  });
+  readonly engine: Matter.Engine;
   private readonly bodies = new Map<string, Matter.Body>();
   // New contacts since the last drain, for sound / particles only (never fed back).
   private impacts: Impact[] = [];
 
-  constructor() {
+  // gravityPxPerS2: downward gravity in board px/s² (dayGravity() for the day's scale).
+  constructor(gravityPxPerS2: number) {
+    this.engine = Matter.Engine.create({
+      // Matter multiplies gravity.y by gravity.scale (0.001 px/ms² = 1000 px/s²).
+      gravity: { x: 0, y: gravityPxPerS2 / 1000 },
+      positionIterations: POSITION_ITERATIONS,
+      velocityIterations: VELOCITY_ITERATIONS,
+    });
     Matter.Composite.add(this.engine.world, createPlatform());
     Matter.Events.on(this.engine, "collisionStart", (event) => {
       for (const pair of event.pairs) {

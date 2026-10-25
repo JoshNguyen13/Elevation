@@ -302,6 +302,12 @@ This keeps the "meters internally, screen-proportionate" intent of §4.2 without
 
 ### Controls (§2.2, desktop first)
 Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, **E** clockwise (while holding or just after placing) · release places the piece. All 10 pieces are visible in the tray at once, and the player picks the order. Pieces can go anywhere on the canvas. Mobile controls are TBD.
+**View (`src/lib/game/boardView.ts`, view only; input mapped in `BuildPhase.tsx` the way Figma / Canva do it):**
+- **Pan, at any zoom:** scroll or two-finger swipe (Shift + scroll pans sideways), hold **Space** and drag (hand tool, even over a piece), middle-drag, or drag empty space. Right-click does nothing.
+- **Zoom (1–4×):** **Ctrl/Cmd + scroll** or a trackpad pinch zooms toward the cursor (each wheel step is clamped, so a mouse notch is about 18%). **Ctrl/Cmd + `+` / `−` / `0`** zoom in, zoom out and reset (instead of zooming the page). The `+` / `−` buttons work too.
+- **Margin:** the view may pan up to a quarter of a screen past the board's edges. That margin draws grey, and a drop there counts as off the board (the piece goes back to the tray).
+- **Edge auto-pan:** carrying a piece near the canvas edge scrolls toward board that's out of view, but never into the margin, so nothing scrolls at 1× until you've panned.
+- **Reset:** clicking the zoom value (enabled whenever the view has moved) brings back the whole board.
 
 ### Build-phase rules (as built; `src/lib/game/buildSession.ts`)
 - **Who owns what.**
@@ -559,7 +565,7 @@ npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first 
 
 **What you should see (Phase 7):** the generated items are black silhouettes (the newest piece in blue) on the board, in the tray, on the intro and in the drag ghost. The first "Start Building" shows the "How to Play" tutorial once (Skip counts as seen; clear `elevation:tutorial-seen` in localStorage to see it again), and the intro's "How to Play" link opens it any time. While building, the ruler shows a blue live-height pill. Impacts kick up dust and make sound after your first click, and a speaker toggle under the zoom box mutes it. The screen shakes only during the disaster. Good preview day: `?date=2026-11-22&disaster=earthquake` (elephant + giraffe). Dev console hooks: `window.__elevation`, `__view`, `__juice`, `__sound`.
 
-**What you should see (Phase 6):** next to the board there's a small zoom box (`+`, the current zoom, `−`). Scroll over the board to zoom toward the cursor; at more than 1× drag empty space to pan; click the zoom value to reset. With the real library empty, the game looks the same as Phase 5 otherwise. To try big and tiny items: `npm run materials:mock`, set `NEXT_PUBLIC_MOCK_ITEMS=1` in `.env.local`, restart `npm run dev` (it runs offline while that flag is on).
+**What you should see (Phase 6):** next to the board there's a small zoom box (`+`, the current zoom, `−`). Ctrl + scroll (or pinch) over the board zooms toward the cursor; plain scroll, Space + drag or dragging empty space pans at any zoom; click the zoom value (or Ctrl + 0) to reset. With the real library empty, the game looks the same as Phase 5 otherwise. To try big and tiny items: `npm run materials:mock`, set `NEXT_PUBLIC_MOCK_ITEMS=1` in `.env.local`, restart `npm run dev` (it runs offline while that flag is on).
 
 **What you should see (Phase 5):** the Figma "00 — Daily Intro" screen first ("Today's Stack", 10 materials, Start Building). After a run, "04 — Results" with the score cards, the percentile, the leaderboard and a name box. Reloading after playing goes straight to results. In dev, add `?replay=1` to play again.
 - The rest is the "02 — Build Phase" and "03 — Testing Phase" screens at 1440×900:

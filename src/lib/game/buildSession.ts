@@ -27,7 +27,7 @@ import {
 import { PhysicsWorld, type Pose } from "@/lib/physics/world";
 import type { DisasterType } from "@/lib/supabase/types";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE, PLATFORM_RECT } from "./board";
-import { MAX_STACK_PX, pieceScale } from "./dailyScale";
+import { dayGravity, MAX_STACK_PX, pieceScale } from "./dailyScale";
 import type { BoardOverlay, DrawnIcon, DrawnPiece } from "./draw";
 import {
   boundsOf,
@@ -119,12 +119,15 @@ export type JuiceEvent =
   | { kind: "rotate" }
   | { kind: "fallen"; x: number; y: number }
   | { kind: "tick"; secondsLeft: number }
-  | { kind: "phase"; phase: Phase; collapsed?: boolean }
+  // `disaster` is set when the test starts, so sound can loop that disaster's ambience.
+  | { kind: "phase"; phase: Phase; collapsed?: boolean; disaster?: DisasterType }
   // A moment a disaster wants heard or seen (DisasterCue), raised from Disaster.apply.
   | { kind: "disaster"; cue: DisasterCue; x?: number; y?: number; strength: number };
 
 // Impacts slower than this (px per step) are silent resting contacts.
 const MIN_IMPACT_SPEED = 1.2;
+// The gravity (px/s²) the impact thresholds were tuned at; speeds are normalized to it.
+const IMPACT_TUNED_GRAVITY_PX_S2 = 1000;
 const MAX_QUEUED_JUICE = 200;
 
 export interface BuildSessionOptions {
@@ -157,9 +160,11 @@ function isOffBoard(outline: Vec[]): boolean {
 }
 
 export class BuildSession {
-  private readonly world = new PhysicsWorld();
+  private readonly world: PhysicsWorld;
   // Board px per real-world meter for today's set (§5.1).
   readonly pxPerMeter: number;
+  // Fall speed scales with √gravity, so impacts sound the same on every day's gravity.
+  private readonly impactSpeedScale: number;
   private readonly outlines = new Map<string, Vec[]>();
   private readonly iconFrames = new Map<string, { path: string; cx: number; cy: number } | null>();
   private pieces: Piece[];
@@ -196,6 +201,9 @@ export class BuildSession {
     this.buildMsTotal = this.buildMsLeft;
     this.disaster = createDisaster(disaster, seededRandom(seed));
     this.pxPerMeter = pieceScale(materialIds);
+    const gravity = dayGravity(this.pxPerMeter);
+    this.world = new PhysicsWorld(gravity);
+    this.impactSpeedScale = Math.sqrt(gravity / IMPACT_TUNED_GRAVITY_PX_S2);
     this.pieces = materialIds.map((materialId, i) => ({
       uid: `piece-${i}`,
       materialId,
@@ -264,12 +272,13 @@ export class BuildSession {
 
   private collectImpacts() {
     for (const impact of this.world.drainImpacts()) {
-      if (impact.speed < MIN_IMPACT_SPEED) continue;
+      const speed = impact.speed / this.impactSpeedScale;
+      if (speed < MIN_IMPACT_SPEED) continue;
       this.juice({
         kind: "impact",
         x: impact.x,
         y: impact.y,
-        strength: Math.min(1, (impact.speed - MIN_IMPACT_SPEED) / 10),
+        strength: Math.min(1, (speed - MIN_IMPACT_SPEED) / 10),
         meteor: impact.labels.some((label) => label.startsWith("meteor-")),
       });
     }
@@ -704,7 +713,7 @@ export class BuildSession {
       // Nothing standing to test: the run ends with zero survival.
       if (this.towerUids.length === 0) return this.finishTest(true);
       this.phase = "testing";
-      this.juice({ kind: "phase", phase: "testing" });
+      this.juice({ kind: "phase", phase: "testing", disaster: this.disaster.type });
       this.emit();
     } else if (this.phase === "testing") {
       if (Math.floor(this.testMs / 1000) !== this.snapshot.testSeconds) this.emit();

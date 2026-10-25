@@ -11,7 +11,7 @@
   transition: outline-color 120ms ease;
 }
 
-/* Zoomed in: the frame darkens so it's clear you're looking at part of the board. */
+/* Zoomed or panned: the frame darkens so it's clear the view has moved (Reset brings it back). */
 .canvas[data-zoomed] {
   outline-color: var(--color-ink);
 }
