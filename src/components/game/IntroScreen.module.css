@@ -61,6 +61,29 @@
   background: var(--color-background);
 }
 
+/* Figma: button + "How to Play" link, 14px apart. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.howTo {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.howTo:hover {
+  text-decoration: underline;
+}
+
 .footer {
   display: flex;
   align-items: center;

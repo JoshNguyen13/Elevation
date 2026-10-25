@@ -1,0 +1,12 @@
+{
+  "name": "ketchup bottle",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1291,
+    "outputTokens": 304
+  },
+  "path": "M40 0 C44 0 56 0 60 0 C62 0 63 2 63 5 L63 9 C63 11 64 12 65 13 L65 16 C63 17 62 18 64 20 L72 32 C78 36 82 42 82 50 L82 82 C82 87 79 92 78 95 L78 98 C76 100 73 100 70 100 L30 100 C27 100 24 100 22 98 L22 95 C21 92 18 87 18 82 L18 50 C18 42 22 36 28 32 L36 20 C38 18 37 17 35 16 L35 13 C36 12 37 11 37 9 L37 5 C37 2 38 0 40 0 Z"
+}

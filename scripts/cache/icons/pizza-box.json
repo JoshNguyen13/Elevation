@@ -1,0 +1,12 @@
+{
+  "name": "pizza box",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1289,
+    "outputTokens": 1376
+  },
+  "path": "M28 4L57 4L59 6L90 9L96 60L62 100L55 96L45 99L26 84L21 87L3 71L3 67L44 48L38 37L39 36L34 23L35 22L27 6Z"
+}

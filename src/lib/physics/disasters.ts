@@ -36,6 +36,8 @@ export interface Disaster {
   waterLineY(): number | null;
   // Non-piece bodies to draw (meteors).
   extraBodyUids(): readonly string[];
+  // 0–1 continuous screen shake for the view layer (the earthquake). Never affects physics.
+  visualShake(): number;
 }
 
 function verticalExtent(body: Matter.Body) {
@@ -72,6 +74,7 @@ function createWind(direction: 1 | -1): Disaster {
     },
     waterLineY: () => null,
     extraBodyUids: () => [],
+    visualShake: () => 0,
   };
 }
 
@@ -86,17 +89,21 @@ const QUAKE = {
 
 function createEarthquake(): Disaster {
   let phase = 0;
+  let shake = 0;
   return {
     type: "earthquake",
     name: DISASTER_NAMES.earthquake,
     label: "⚠ Earthquake — Intensifying",
     apply({ world, pieceUids, t, dt }) {
       phase += 2 * Math.PI * (QUAKE.baseHz + QUAKE.hzPerSecond * t) * dt;
-      const accel = (QUAKE.baseG + QUAKE.gPerSecond * t) * Math.sin(phase) * world.gravityAccel;
+      const g = (QUAKE.baseG + QUAKE.gPerSecond * t) * Math.sin(phase);
+      shake = Math.min(1, Math.abs(g) / 0.6);
+      const accel = g * world.gravityAccel;
       for (const uid of pieceUids) world.applyForce(uid, { x: world.body(uid).mass * accel, y: 0 });
     },
     waterLineY: () => null,
     extraBodyUids: () => [],
+    visualShake: () => shake,
   };
 }
 
@@ -142,6 +149,7 @@ function createFlood(direction: 1 | -1): Disaster {
     },
     waterLineY: () => waterY,
     extraBodyUids: () => [],
+    visualShake: () => 0,
   };
 }
 
@@ -204,6 +212,7 @@ function createMeteor(rng: () => number): Disaster {
     },
     waterLineY: () => null,
     extraBodyUids: () => live.map((m) => m.uid),
+    visualShake: () => 0,
   };
 }
 

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Po
 import { BOARD_WIDTH_PX } from "@/lib/game/board";
 import { BoardView } from "@/lib/game/boardView";
 import { BuildSession, SIM_SPEEDS, type BuildSnapshot, type Held } from "@/lib/game/buildSession";
-import { boundsOf, transformOutline, type Vec } from "@/lib/game/geometry";
+import { getMaterial } from "@/data/materials";
+import { boundsOf, shapeCentroid, transformOutline, type Vec } from "@/lib/game/geometry";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
 import { runFromSnapshot, type RunSummary } from "@/lib/daily/run";
 import { colors } from "@/lib/theme";
@@ -13,6 +14,7 @@ import BoardCanvas from "./BoardCanvas";
 import HeightRuler from "./HeightRuler";
 import PieceSvg from "./PieceSvg";
 import PieceTray from "./PieceTray";
+import SoundToggle from "./SoundToggle";
 import StabilityMeter from "./StabilityMeter";
 import styles from "./BuildPhase.module.css";
 
@@ -31,19 +33,22 @@ interface BuildPhaseProps {
   onComplete: (run: RunSummary) => void;
   // "See Results" after the test ends.
   onContinue: () => void;
+  // Dev Lab only: overrides the daily build time.
+  buildSeconds?: number;
 }
 
 // 02 — Build Phase → 03 — Testing Phase (Figma). Drag from the tray, Q/E to rotate,
 // pieces fall under the freeze-on-placement rule (§4.3). When the timer ends the
 // tower settles, its height is measured (§4.6, §5.1), then the day's disaster tests
 // it (§4.10). The BuildSession owns the rules and physics.
-export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhaseProps) {
+export default function BuildPhase({ puzzle, onComplete, onContinue, buildSeconds }: BuildPhaseProps) {
   const [session] = useState(
     () =>
       new BuildSession({
         materialIds: puzzle.itemIds,
         disaster: puzzle.disaster,
         seed: puzzle.seedNumber,
+        buildSeconds,
       }),
   );
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
@@ -226,7 +231,10 @@ export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhas
       </header>
 
       <div className={styles.buildArea}>
-        <HeightRuler activeBand={result?.band} />
+        <HeightRuler
+          activeBand={result?.band ?? (phase === "build" ? snapshot.live?.band : undefined)}
+          live={phase === "build" ? snapshot.live : null}
+        />
         <div className={styles.play}>
           <div className={styles.boardWrap}>
             <BoardCanvas
@@ -255,6 +263,7 @@ export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhas
               <button type="button" className={styles.zoomButton} aria-label="Zoom out" onClick={() => view.zoomBy(1 / 1.5)}>
                 −
               </button>
+              <SoundToggle />
             </div>
           </div>
           {/* Always rendered (empty while testing) so the board never shifts. */}
@@ -307,19 +316,41 @@ export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhas
 
       {/* Off the board, the held piece follows the pointer at true scale. On the board, the canvas draws it. */}
       {held && heldMaterialId && !held.pointerBoard && (
-        <HeldGhost held={held} local={session.outline(heldMaterialId)} zoom={zoom} />
+        <HeldGhost
+          held={held}
+          local={session.outline(heldMaterialId)}
+          materialId={heldMaterialId}
+          pxPerMeter={session.pxPerMeter}
+          zoom={zoom}
+        />
       )}
     </div>
   );
 }
 
+interface HeldGhostProps {
+  held: Held;
+  local: Vec[];
+  materialId: string;
+  pxPerMeter: number;
+  zoom: number;
+}
+
 // The off-board drag ghost, at the size the piece will have on the (zoomed) board.
-function HeldGhost({ held, local, zoom }: { held: Held; local: Vec[]; zoom: number }) {
+function HeldGhost({ held, local, materialId, pxPerMeter, zoom }: HeldGhostProps) {
   const outline = transformOutline(local, 0, 0, held.angle).map((v) => ({ x: v.x * zoom, y: v.y * zoom }));
   const b = boundsOf(outline);
+  // Same transform as the canvas: rotate, meters -> px (with zoom), centroid to the origin.
+  const material = getMaterial(materialId);
+  const c = shapeCentroid(material.shape);
+  const art = material.icon && {
+    path: material.icon.path,
+    transform: `rotate(${(held.angle * 180) / Math.PI}) scale(${pxPerMeter * zoom}) translate(${-c.x} ${-c.y})`,
+  };
   return (
     <PieceSvg
       outline={outline}
+      art={art || undefined}
       fill={colors.ink}
       className={styles.ghost}
       style={{

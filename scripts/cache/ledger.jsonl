@@ -38,3 +38,24 @@
 {"ts":"2026-10-25T04:39:37.853Z","api":"gemini","item":"elephant","model":"gemini-3.1-flash-lite","inputTokens":1261,"outputTokens":78}
 {"ts":"2026-10-25T04:39:44.993Z","api":"serpapi","item":"giraffe"}
 {"ts":"2026-10-25T04:39:50.616Z","api":"gemini","item":"giraffe","model":"gemini-3.1-flash-lite","inputTokens":1254,"outputTokens":78}
+{"ts":"2026-10-25T05:07:51.936Z","api":"gemini","stage":"icon","item":"elephant","model":"gemini-3.1-flash-lite","inputTokens":1270,"outputTokens":2484}
+{"ts":"2026-10-25T05:09:07.198Z","api":"gemini","stage":"icon","item":"elephant","model":"gemini-3.1-flash-lite","inputTokens":1280,"outputTokens":151}
+{"ts":"2026-10-25T05:11:33.220Z","api":"gemini","stage":"icon","item":"elephant","model":"gemini-3.8-flash","inputTokens":1280,"outputTokens":149}
+{"ts":"2026-10-25T06:00:00.000Z","api":"gemini","stage":"icon","item":"elephant","model":"gemini-3.8-flash","inputTokens":0,"outputTokens":3851,"note":"correction: thinking tokens were not counted at the time; upper bound = 4000 cap - 149 visible"}
+{"ts":"2026-10-25T05:13:42.813Z","api":"gemini","stage":"icon","item":"elephant","model":"gemini-3.8-flash","inputTokens":1280,"outputTokens":359}
+{"ts":"2026-10-25T05:15:54.673Z","api":"gemini","stage":"icon","item":"ketchup-bottle","model":"gemini-3.8-flash","inputTokens":1291,"outputTokens":304}
+{"ts":"2026-10-25T05:17:30.152Z","api":"gemini","stage":"icon","item":"soda-can","model":"gemini-3.8-flash","inputTokens":1291,"outputTokens":312}
+{"ts":"2026-10-25T05:18:39.338Z","api":"gemini","stage":"icon","item":"brick","model":"gemini-3.8-flash","inputTokens":1289,"outputTokens":3181}
+{"ts":"2026-10-25T05:21:08.695Z","api":"gemini","stage":"icon","item":"hardcover-book","model":"gemini-3.8-flash","inputTokens":1291,"outputTokens":3943}
+{"ts":"2026-10-25T05:23:59.785Z","api":"gemini","stage":"icon","item":"tennis-ball","model":"gemini-3.8-flash","inputTokens":1308,"outputTokens":777}
+{"ts":"2026-10-25T05:30:22.343Z","api":"gemini","stage":"icon","item":"pizza-box","model":"gemini-3.8-flash","inputTokens":1289,"outputTokens":1376}
+{"ts":"2026-10-25T05:31:41.162Z","api":"gemini","stage":"icon","item":"traffic-cone","model":"gemini-3.8-flash","inputTokens":1303,"outputTokens":216}
+{"ts":"2026-10-25T06:02:53.932Z","api":"gemini","stage":"icon","item":"fire-hydrant","model":"gemini-3.8-flash","inputTokens":1257,"outputTokens":260}
+{"ts":"2026-10-25T06:04:43.313Z","api":"gemini","stage":"icon","item":"soccer-ball","model":"gemini-3.8-flash","inputTokens":1281,"outputTokens":2500}
+{"ts":"2026-10-25T06:05:56.791Z","api":"gemini","stage":"icon","item":"watermelon","model":"gemini-3.8-flash","inputTokens":1307,"outputTokens":168}
+{"ts":"2026-10-25T06:06:45.099Z","api":"gemini","stage":"icon","item":"bucket","model":"gemini-3.8-flash","inputTokens":1289,"outputTokens":3397}
+{"ts":"2026-10-25T06:08:25.002Z","api":"gemini","stage":"icon","item":"microwave-oven","model":"gemini-3.8-flash","inputTokens":1290,"outputTokens":3986}
+{"ts":"2026-10-25T06:11:22.442Z","api":"gemini","stage":"icon","item":"office-chair","model":"gemini-3.8-flash","inputTokens":1290,"outputTokens":684}
+{"ts":"2026-10-25T06:14:17.800Z","api":"gemini","stage":"icon","item":"car-tire","model":"gemini-3.8-flash","inputTokens":1274,"outputTokens":3954}
+{"ts":"2026-10-25T06:16:21.783Z","api":"gemini","stage":"icon","item":"couch","model":"gemini-3.8-flash","inputTokens":1289,"outputTokens":228}
+{"ts":"2026-10-25T06:18:09.969Z","api":"gemini","stage":"icon","item":"refrigerator","model":"gemini-3.8-flash","inputTokens":1303,"outputTokens":3985}

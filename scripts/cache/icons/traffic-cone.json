@@ -1,0 +1,12 @@
+{
+  "name": "traffic cone",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1303,
+    "outputTokens": 216
+  },
+  "path": "M46 2 C46 1 48 0 50 0 C52 0 54 1 54 2 L56 3 C56 5 54 6 54 8 L59 23 L68 62 L73 80 L79 87 C83 89 83 91 83 93 L83 97 C83 99 81 100 78 100 L22 100 C19 100 17 99 17 97 L17 93 C17 91 17 89 21 87 L27 80 L32 62 L41 23 L46 8 C46 6 44 5 44 3 Z"
+}

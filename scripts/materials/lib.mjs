@@ -19,6 +19,7 @@ export const PATHS = {
   candidates: join(here, "candidates.json"),
   serp: join(cache, "serpapi"),
   gemini: join(cache, "gemini"),
+  icons: join(cache, "icons"),
   // Thumbnail bytes: git-ignored (web images are not ours to commit).
   images: join(cache, "images"),
   ledger: join(cache, "ledger.jsonl"),
@@ -39,8 +40,16 @@ export const PROMPT_VERSION = 1;
 // gemini-2.5-flash-lite is cheaper but "no longer available to new users" (the 1-item canary
 // got a 404 on 2026-10-25), so the default is the next-cheapest Flash-Lite that works.
 export const DEFAULT_MODEL = "gemini-3.1-flash-lite";
-// USD per 1M tokens, for the cost ESTIMATE only (gemini-3.1-flash-lite list price, checked 2026-10-24).
-export const PRICE_PER_M_TOKENS = { input: 0.25, output: 1.5 };
+// Icons need a stronger model: flash-lite's silhouettes were unrecognizable blobs, and
+// gemini-3.8-flash (at low thinking) drew a clear elephant for ~$0.0014 (2026-10-25 canary).
+export const DEFAULT_ICON_MODEL = "gemini-3.8-flash";
+// USD per 1M tokens (output includes thinking), for the cost ESTIMATE only. List prices
+// checked 2026-10-25; 3.8 Flash doubles on 2027-01-01. Unknown models use flash-lite's.
+export const PRICES_PER_M_TOKENS = {
+  "gemini-3.1-flash-lite": { input: 0.25, output: 1.5 },
+  "gemini-3.8-flash": { input: 0.75, output: 3.75 },
+};
+const FALLBACK_PRICE = PRICES_PER_M_TOKENS["gemini-3.1-flash-lite"];
 
 // --- Files -------------------------------------------------------------------
 
@@ -93,16 +102,22 @@ export function redact(text, ...secrets) {
 // Also Gemini 403 "caller does not have permission": observed 2026-10-25 as an
 // intermittent error (the identical request succeeded on the next try). Rejected
 // requests aren't billed, so one retry after a longer pause is safe; a second 403 stops the run.
+// Status 0 = no HTTP response at all (connection reset), so nothing was generated or billed.
+// Observed repeatedly on 2026-10-25 (ECONNRESET between calls), so those get up to 3 retries
+// with backoff; every other retryable error still gets exactly one.
 export async function withOneRetry(fn) {
-  try {
-    return await fn();
-  } catch (error) {
-    if (!(error instanceof ApiError)) throw error;
-    const transient403 = error.api === "gemini" && error.status === 403;
-    const retryable = error.status === 429 || error.status >= 500 || transient403;
-    if (!retryable) throw error;
-    await sleep(transient403 ? 15000 : 5000);
-    return fn();
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (!(error instanceof ApiError)) throw error;
+      const transient403 = error.api === "gemini" && error.status === 403;
+      const network = error.status === 0;
+      const retryable = error.status === 429 || error.status >= 500 || transient403 || network;
+      const maxRetries = network ? 3 : 1;
+      if (!retryable || attempt >= maxRetries) throw error;
+      await sleep(transient403 ? 15000 : network ? 5000 * (attempt + 1) : 5000);
+    }
   }
 }
 
@@ -115,24 +130,26 @@ export function recordCall(entry) {
 
 export function ledgerTotals() {
   const totals = { serpapi: 0, gemini: 0, inputTokens: 0, outputTokens: 0 };
+  let usd = 0;
   if (!existsSync(PATHS.ledger)) return { ...totals, estimatedUsd: 0 };
   for (const line of readFileSync(PATHS.ledger, "utf8").split("\n")) {
     if (!line.trim()) continue;
     const entry = JSON.parse(line);
-    if (entry.api === "serpapi") totals.serpapi += 1;
+    // A `note` line is a manual token correction for an earlier call, not a new call.
+    if (entry.api === "serpapi" && !entry.note) totals.serpapi += 1;
     if (entry.api === "gemini") {
-      totals.gemini += 1;
+      if (!entry.note) totals.gemini += 1;
       totals.inputTokens += entry.inputTokens ?? 0;
       totals.outputTokens += entry.outputTokens ?? 0;
+      usd += estimateUsd(entry.inputTokens ?? 0, entry.outputTokens ?? 0, entry.model);
     }
   }
-  return { ...totals, estimatedUsd: estimateUsd(totals.inputTokens, totals.outputTokens) };
+  return { ...totals, estimatedUsd: usd };
 }
 
-export function estimateUsd(inputTokens, outputTokens) {
-  return (
-    (inputTokens * PRICE_PER_M_TOKENS.input + outputTokens * PRICE_PER_M_TOKENS.output) / 1_000_000
-  );
+export function estimateUsd(inputTokens, outputTokens, model) {
+  const price = PRICES_PER_M_TOKENS[model] ?? FALLBACK_PRICE;
+  return (inputTokens * price.input + outputTokens * price.output) / 1_000_000;
 }
 
 export function formatUsd(usd) {

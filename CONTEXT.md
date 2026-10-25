@@ -13,14 +13,112 @@
 
 **Elevation** is a 2D, browser-based daily puzzle game. Every player gets the same 10 pieces and two minutes to stack them as high and stable as they can, then the tower is hit by that day's natural disaster. Score = height + survival time, shown as a percentile against everyone who played today (Wordle × Tricky Towers × Krillion results).
 
-**Current phase: Phase 6 — Materials library. ✅ Complete.** The cost-safe SerpAPI + Gemini pipeline works end to end: `src/data/items.generated.json` holds **20 real items** (traffic cone to giraffe), built from 20 SerpAPI + 20 Gemini calls (about $0.01 total). The daily puzzle now draws from these 20 plus the 3 basic shapes. Board zoom is in too. Pure real proportions are kept on purpose, so some days mix tiny and huge pieces (reviewed and accepted; numbers in §8, "Raised during Phase 6"). Phase 5's Supabase leaderboard is also still unverified against a real project (§7).
+**Current phase: Phase 7 — Polish. 🚧 IN PROGRESS. The approved plan, with a progress checklist, is in "Phase 7 plan" just below. A new session should continue from the first unchecked box.**
+
+**Phase 6 — Materials library. ✅ Complete.** The cost-safe SerpAPI + Gemini pipeline works end to end: `src/data/items.generated.json` holds **20 real items** (traffic cone to giraffe), built from 20 SerpAPI + 20 Gemini calls (about $0.01 total). The daily puzzle now draws from these 20 plus the 3 basic shapes. Board zoom is in too. Pure real proportions are kept on purpose, so some days mix tiny and huge pieces (reviewed and accepted; numbers in §8, "Raised during Phase 6"). Phase 5's Supabase leaderboard is also still unverified against a real project (§7).
 **Next:**
 - **Track D:** optionally grow the library (20 more candidates are ready in `candidates.json`; §3.4). Size spread is an accepted trade-off (§8, Phase 6).
 - **Everyone:** create the Supabase project and verify against it (§7). Only a mock PostgREST server has been tested.
 - **Track A:** tune disaster magnitudes by playtesting. Every number in `src/lib/physics/disasters.ts` is a first pass. Once real items exist, also playtest day sets with huge and tiny items together.
-- **Track B (Phase 7):** tutorial / "How to Play", juice, polish of the Intro and Results screens.
+- **Track B (Phase 7):** see the plan below.
 
 Read "Build-phase rules" in §4 first.
+
+### Phase 7 plan (approved 2026-10-25, Joshua; tick boxes as you go)
+**Why:** the 20 generated items render as anonymous black boxes, circles and trapezoids (we only draw the physics shape), so nobody can tell a couch from a fridge. Doc §3.4 / §8: items should be **flat-icon silhouettes** in the black/white + one-blue style, with the SerpAPI photo as the reference for whoever draws or auto-generates them. Phase 7 (§10.2) also covers the tutorial and juice. The doc's build HUD also wants a live height readout.
+
+**Decisions:**
+- Silhouettes are filled in ink, with the newest piece in accent.
+- **Gemini draws each silhouette as an SVG path** from the cached reference photo: one more cached call per item, about $0.002.
+- **The hitbox becomes the simplified convex hull of the silhouette** (≤ 12 points), so collisions match the art. `round` items keep a circle hitbox, so they still roll.
+- In scope: tutorial, juice, live height. Out of scope: the pitch deck.
+
+**A. Silhouettes**
+- [x] **A1 Pipeline, new "icon" stage** (`scripts/materials/`). Same cost guards as Phase 6. **Done.** 21 unit tests pass. The `--existing` flag limits a run to items already in the library.
+  - **Model:** `gemini-3.1-flash-lite` drew unrecognizable blobs, so icons use **`gemini-3.8-flash` with `thinkingLevel: "low"`** (`DEFAULT_ICON_MODEL`; about $0.0014 per icon).
+  - **Prompt v2** asks for whole-number coordinates and ≤ 40 commands. v1 ran into the token cap.
+  - **Ledger:** thinking tokens are now counted as output; they were missed once, and that call was corrected in the ledger with a `note` line.
+  - **Retries:** network failures (status 0) are now retried once.
+  - `icon.mjs`: one Gemini call with the name + cached photo. It returns `{ "path": "<svg d>" }`: a single filled side-view silhouette in a 0–100 box, resting on the bottom, using commands M/L/H/V/C/S/Q/T/Z only (no arcs), at most ~80 commands.
+  - Separate `ICON_PROMPT_VERSION` and `GEMINI_ICON_MODEL` (default `gemini-3.1-flash-lite`). Cached in `scripts/cache/icons/<slug>.json`, committed.
+  - `svgpath.mjs` (pure): parse (absolute and relative) → flatten curves → bbox → convex hull (monotone chain) → simplify to ≤ 12 vertices by dropping the least-area vertex. Validation rejects arcs, bad characters, > 4,000 characters, < 3 points, a zero bbox and NaN, and is cached as invalid (never re-paid).
+  - `convert.mjs`, `toMaterial(name, estimate, iconPath?)`:
+    - **Scale:** the silhouette is scaled uniformly so its bbox area equals `width_m × height_m`.
+    - **Hitbox:** `shape = convex` (the hull, in meters), except `round`, which keeps a circle with the art fitted inside.
+    - **Icon field:** `icon = { path, box }` **in the same meter frame as `shape.vertices`**.
+  - `generate.mjs`: a "needs-icon" status for items without a cached icon (1 Gemini call each, counted in `materials:plan`). A run fills icons in and re-derives those items; ids are unchanged.
+  - `validateLibrary`: convex ≤ 12 vertices, and the `icon` is validated.
+  - Unit tests for all of it.
+- [x] **A2 Game rendering** (done; the elephant was verified in-game, in the tray and at 3x zoom)
+  - `materials.ts`: `icon?: { path: string; box: { x; y; w; h } }`.
+  - `geometry.ts`: export `shapeCentroid(shape)` in meters, the same math `shapeOutline` uses. A Matter body's position is that centroid.
+  - `draw.ts`: `DrawnPiece.icon = { path2d, x, y, angle, scale, cx, cy }`. Draw order: translate → rotate → scale(pxPerMeter) → translate(−centroid) → fill(Path2D), with Path2D cached per path.
+    - Pieces without an icon (basic shapes, meteors) draw as before.
+    - Blocked look: a grey silhouette plus the dashed hull outline.
+  - `BuildSession.drawables()` passes the icon with the body or preview pose.
+  - `PieceSvg` gets an icon mode, used by the tray and intro (normalized to 32px).
+  - The off-board `HeldGhost` uses the path with an SVG transform (rotate + scale by `pxPerMeter × zoom`).
+  - The path is only used via Path2D or a React `d` attribute, never as HTML.
+- [ ] **A3 Real run** (8/20 done; see Status below)
+  - `materials:plan` should show 20 needing an icon and 0 SerpAPI.
+  - **Canary** `--limit 1` (~$0.002), then screenshot it in-game. If the art is poor, try one stronger Flash model through `GEMINI_ICON_MODEL`.
+  - Then the remaining 19. Total under about $0.05.
+
+**B. Live height readout**
+- [x] `BuildSession.liveHeight`: platform top minus the highest vertex of the placed pieces, **excluding the frozen (floating) piece**. It's emitted when the shown 0.1 m value changes.
+- [x] `HeightRuler`: during the build, an accent marker with a "3.4 m" label plus the live band highlight. After measurement, the official band as now.
+
+**C. Tutorial (Figma 01 — Tutorial)**
+- [x] `TutorialScreen.tsx`: "How to Play", "Skip →", 4 step cards using the Figma copy, and the "Got it — Start Building" button.
+- [x] `Game.tsx`:
+  - **First-time players:** Start Building → tutorial → play. The localStorage `elevation:tutorial-seen` flag makes it show once; Skip counts the same.
+  - **Intro link:** the "How to Play" link opens it any time.
+
+**D. Juice** (`src/lib/juice/`; view-only, never affects physics or scores)
+- [x] **Events:**
+  - `PhysicsWorld` records Matter `collisionStart` impacts (the point plus the relative normal speed).
+  - `BuildSession` keeps a drainable queue: `impact` / `place` / `pickup` / `rotate` / `fallen` / meteor hit / phase changes / the last-10s timer ticks.
+- [x] **`audio.ts`:** WebAudio-synthesized sounds (no assets).
+  - **Sounds:** a thud scaled by impact speed (throttled), clicks, a rotate tick, timer ticks, a disaster whoosh, a collapse crash, and a survive chime.
+  - **Setup:** the audio context is created on the first gesture. A mute toggle sits under the zoom control, saved in localStorage.
+- [x] **`particles.ts`:** dust on impacts, debris on falls, meteor and splash bursts. Drawn in board coordinates in `drawBoard`, and capped.
+- [x] **`shake.ts`:** decaying trauma from big impacts, meteors and collapse, plus a continuous earthquake shake. **Testing phase only** (it never offsets drops), and off for `prefers-reduced-motion`.
+- [x] **Wiring:** `BoardCanvas` drains the events every frame.
+
+**E.**
+- [ ] CONTEXT.md: §3.1 icon type, §3.4 icon stage, §4 rendering / hull / juice, folder map, §7, §8, session log. Mark Phase 7 in the roadmap.
+
+**Status 2026-10-25 (session ended at its usage limit; RESUME HERE):**
+- **A1, A2, B, C, D are coded**, and tsc, lint and 22 unit tests pass. **B, C and D are not yet verified in the browser.** A ready-made test exists: `scratchpad/cdp/phase7-test.mjs` from the last session. Recreate it if it's missing; the checks are listed under Verification below.
+- **A3:** 8 of 20 silhouettes were generated (elephant, ketchup bottle, soda can, brick, hardcover book, tennis ball, pizza box, traffic cone). A background run for the last 12 was started.
+  - **To finish:** `npm run materials:plan -- --existing` shows what's left, then `npm run materials:run -- --limit 12 --existing`. Cached work is never re-paid.
+- **What changed in icon generation (`scripts/materials/`):**
+  - **Model:** `gemini-3.8-flash` (`DEFAULT_ICON_MODEL`). Flash-Lite drew blobs.
+  - **Thinking:** capped with `thinkingConfig.thinkingBudget: 512` (`ICON_THINKING_BUDGET` in `icon.mjs`). `thinkingLevel: "low"` still burned 3–4k tokens on a brick.
+  - **Retries:** network resets (`ECONNRESET`, status 0, not billed) now retry up to 3 times with backoff.
+  - **Ledger:** costs are priced per model (`PRICES_PER_M_TOKENS`). Thinking tokens count as output.
+  - **Bug fixed:** a thin book's hull wasn't convex after rounding; the hull is re-computed after rounding.
+- **Spend so far:** 20 SerpAPI + about 31 Gemini calls, about $0.08 lifetime. The icons will total about $0.13, against the plan's ~$0.05, because of two thinking overruns before the cap. Per icon now: about $0.004–0.006.
+- **Remaining for Phase 7:**
+  1. Finish A3.
+  2. Run the browser verification (silhouettes, live height, tutorial flow, juice, regression).
+  3. Screenshot a few silhouettes to judge the art quality. If any look bad, bump `ICON_PROMPT_VERSION` or use `--retry-invalid --only "<name>"` for single items.
+  4. Fill in the session log entry and mark Phase 7 in the roadmap.
+- **Nothing from Phases 5–7 is committed yet.** Commit the new `scripts/cache/icons/` and `gemini/` files too, so nobody pays twice.
+
+**Verification:**
+1. `materials:test` and `materials:check`.
+2. `materials:plan` shows 20 icon calls and 0 SerpAPI. `--dry-run` shows the request.
+3. Canary, then the batch. Hull contains ≥ 95% of the silhouette points.
+4. Headless Chrome with `?date=` previews:
+   - silhouettes on the board, in the tray, on the intro and in the drag ghost;
+   - collisions match the art;
+   - zoom and drop mapping still exact;
+   - the live height marker ignores the frozen piece;
+   - tutorial once / Skip / How to Play;
+   - juice events, no audio errors, shake only in testing;
+   - a full-flow regression.
+5. `tsc`, `lint` and `build`, with no console errors.
 
 ### Roadmap (§10.2)
 | Phase | What | Who |
@@ -32,7 +130,7 @@ Read "Build-phase rules" in §4 first.
 | **4 — Disasters** ✅ | One disaster end to end first (wind), escalation + stability score, then the others | Track A |
 | **5 — Daily system + leaderboard** ✅ | Supabase schema, device ID + display name, date seed → materials + disaster, percentile query | Track C |
 | **6 — Materials library** ✅ (20 real items) | Offline SerpAPI + Gemini pipeline that grows the real-world-object library | Track D |
-| 7 — Polish & pitch | Tutorial, results screen, juice (sound, shake, particles), pitch deck | Track B + all |
+| 7 — Polish & pitch 🚧 | Tutorial, results screen, juice (sound, shake, particles), pitch deck. **Plan + checklist in §1, "Phase 7 plan"** | Track B + all |
 
 **Cut order if time runs short:** library size (6) → disaster variety beyond the first (4) → breaking/durability (stretch). **Never cut** the core stacking feel or the daily/leaderboard hook.
 
@@ -83,7 +181,8 @@ interface Material {
   mass: number;        // relative; Matter.js derives inertia from mass + shape
   friction: number;    // 0–1; the ONLY surface property that varies
   archetype?: Archetype;
-  icon?: string;       // flat silhouette icon (not the SerpAPI photo)
+  icon?: { path: string; box: {x, y, w, h} };  // flat silhouette, drawn instead of the hitbox (Phase 7).
+                       // path: SVG (absolute M L C Q Z) in METERS, same frame as `shape`; unset for basic shapes
 }
 // There is NO restitution field: restitution is fixed at 0 for every material (§3.2).
 ```
@@ -128,8 +227,8 @@ Grows `src/data/items.generated.json` with real-world objects. **The game never 
 | `npm run materials:mock -- --limit 20` | Fake items for testing into `items.mock.json`. | No |
 | `npm run materials:check` / `materials:test` | Validate both library files / unit-test the conversion rules. | No |
 
-**How a new item is made.** One SerpAPI Google Images search gives a reference photo. One Gemini call (`gemini-3.1-flash-lite` by default; `GEMINI_MODEL` overrides it) looks at the name + photo and returns six values as structured JSON: `width_m`, `height_m`, `archetype`, `taper`, `density_kg_per_l`, `surface_roughness`. `convert.mjs` turns that into a `Material`:
-- `round` → circle. Otherwise `taper ≥ 0.9` → box, lower → convex trapezoid (narrow top). Never a silhouette hitbox.
+**How a new item is made.** One SerpAPI Google Images search gives a reference photo. **One Gemini icon call (Phase 7)** draws a side-view silhouette as a single SVG path from that photo (`icon.mjs`; `gemini-3.8-flash` at `thinkingLevel: "minimal"`, `GEMINI_ICON_MODEL` overrides it). `svgpath.mjs` parses it, flattens the curves and takes the **convex hull (≤ 12 points) as the hitbox**; the art is stored in the item in the same meter frame. Round items keep a circle hitbox with the art fitted inside. Cached in `scripts/cache/icons/`. One Gemini estimate call (`gemini-3.1-flash-lite` by default; `GEMINI_MODEL` overrides it) looks at the name + photo and returns six values as structured JSON: `width_m`, `height_m`, `archetype`, `taper`, `density_kg_per_l`, `surface_roughness`. `convert.mjs` turns that into a `Material`:
+- `round` → circle (any icon is fitted inside). With a valid icon, anything else → the icon's convex hull. Without one, `taper ≥ 0.9` → box, lower → convex trapezoid (narrow top).
 - **Real proportions are kept.** Only clamped to engine limits (0.03–12 m per side, aspect ≤ 10).
 - **Mass** = `2 × (area × density / 3.24)^0.35`, clamped to 0.4–12. **Friction** = `0.7 + 0.8 × roughness`, clamped to 0.7–1.5. All constants are in `convert.mjs` (`LIMITS`).
 - No icon: the game draws the physics outline, which keeps the flat minimalist look. The SerpAPI photo is reference material only and is never shown.
@@ -141,6 +240,9 @@ Grows `src/data/items.generated.json` with real-world objects. **The game never 
 - **Fail fast:** any API error stops the whole run (one retry only for 429 / 5xx, and for Gemini 403, which was intermittent in practice). 3 invalid answers in a row also stop it. An invalid answer is cached so it isn't paid for again (`--retry-invalid` pays again on purpose).
 - Calls are paced (default 4s; `--delay-ms`) for SerpAPI's 50/hour and Gemini's free-tier limits. Every real call is logged to `scripts/cache/ledger.jsonl` (no keys, no responses); `materials:plan` prints the totals.
 - **Bumping `PROMPT_VERSION` or changing the model deliberately makes every cached estimate stale** and the next run pays again. Don't, unless you mean it.
+- **Icons:** `ICON_PROMPT_VERSION` (now 3) is only written into new cache entries. Valid icons from `ICON_MIN_PROMPT_VERSION` (2) on are kept, so a prompt tweak doesn't repay all 20. **To redraw one poor icon:** `npm run materials:run -- --limit 1 --existing --redraw --only "<name>"` (`--redraw` refuses to run without `--only`). `--retry-invalid` only redoes icons cached as invalid. Raising `ICON_MIN_PROMPT_VERSION` redraws everything.
+- **Thinking:** gemini-3.8-flash **ignores `thinkingBudget`**: with a 512 budget, half the calls still thought until the 4,000-token output cap, and those were the tilted, garbled or truncated (`MAX_TOKENS`, cached invalid) icons. Icons use `thinkingLevel: "minimal"`.
+- **The Gemini key is on the free tier** (found 2026-10-25): **20 gemini-3.8-flash requests per day**, reset at midnight Pacific; a 429 then stops the run. Nothing is billed, so the ledger's dollar figure is a list-price estimate, not a charge.
 - Reference prices at 2026-10-24: SerpAPI free plan 250 searches/month (50/hour; cached and errored searches don't count). Gemini 3.1 Flash-Lite about $0.25 / $1.50 per 1M input / output tokens, with a free tier. One item is a few hundred tokens, so the whole library costs cents. Re-check the pricing pages if you rely on these.
 
 **Testing without credit.** `npm run materials:mock` writes deterministic fake items (sizes 0.1–4 m) to `src/data/items.mock.json`. Set `NEXT_PUBLIC_MOCK_ITEMS=1` in `.env.local` and restart `npm run dev` to play with them. This is dev-only, and **it also puts the game fully offline** (`client.ts`), so a puzzle or score using fake ids can never reach the shared Supabase. Keep `items.mock.json` as `[]` in commits.
@@ -292,6 +394,26 @@ Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, 
   - **Frame:** the board always has a 2px grey outline (black while zoomed in, accent blue while you hold a piece). It's a CSS `outline`, not a border, because a border would add to the canvas box and offset the pointer mapping.
   - **Why:** items keep their real proportions, so a ketchup bottle can be a few px next to an elephant. Zoom is how you place small ones. It works in the build and testing phases.
   - **Limit:** the frame is fixed. Zoom can't make an item wider than the 220px platform fit better; it only helps with small ones.
+- **Silhouettes (Phase 7).** Items with an `icon` are drawn as their silhouette, not their hitbox.
+  - **Canvas** (`draw.ts`, `DrawnPiece.icon`): translate to the body → rotate → scale by `pxPerMeter` → translate by `-shapeCentroid(shape)` → fill a cached `Path2D`.
+    - Placed pieces are ink with a 1px background hairline, so touching pieces stay apart. The newest piece is accent; the preview is accent at 85%.
+    - A blocked drop shows a grey silhouette plus the dashed hitbox.
+  - **DOM:** the tray and intro use `glyph()` (`lib/game/icon.ts`) with `PieceSvg` `art` (32px). The drag ghost uses the same transform as SVG.
+  - **Basic shapes and meteors** draw as before.
+  - **Hitbox vs art:** the hitbox is the silhouette's convex hull, so concave gaps (between an elephant's legs) count as solid.
+- **Live height (Phase 7).** `snapshot.live` (build phase only) is the tallest point of the placed pieces, **excluding the frozen piece**, in meters plus its band. It re-emits only when the 0.1 m value changes. `HeightRuler` shows it as an accent pill marker and highlights the live band.
+- **Juice (Phase 7, `src/lib/juice/`, view-only).**
+  - **Events:** `BuildSession` queues `JuiceEvent`s and `BoardCanvas` drains them every frame through `Juice.handle()`:
+    - impacts, from Matter `collisionStart` (`PhysicsWorld.drainImpacts`), with strength = closing speed;
+    - place / pickup / rotate;
+    - fallen (collapse tracking);
+    - timer ticks in the last 10s;
+    - phase changes.
+  - **Sound:** `audio.ts` synthesizes everything with WebAudio, no asset files. Sounds: an impact thud (throttled), clicks, a rotate tick, timer ticks, a time-up chime, a disaster whoosh, a collapse crash, and a survive chime. The context unlocks on the first click or key (`Game.tsx`). The mute toggle (speaker under the zoom buttons) is saved as `elevation:muted`.
+  - **Particles:** `particles.ts` makes dust on impacts, ink debris on falls, and grey bursts on meteor hits. Capped at 320.
+  - **Shake:** `shake.ts` is a decaying trauma value plus the earthquake's continuous `disasterShake()`. Only in testing/done, so it never offsets a drop, and off under `prefers-reduced-motion`. It moves only the drawing.
+  - **Dev hooks:** `window.__juice`, `window.__sound`.
+- **Tutorial (Phase 7).** `TutorialScreen` (Figma 01). The first Start Building goes through it once (`elevation:tutorial-seen`), where Skip is the same as Got it. The intro's "How to Play" link opens it any time and returns to the intro.
 - **Rendering.** Custom canvas draw (`src/lib/game/draw.ts`), not `Matter.Render`. The held piece is drawn on the canvas when the pointer is over the board, and as a fixed-position SVG ghost when it's off the board.
 
 ---
@@ -339,7 +461,8 @@ Elevation/
 ├── scripts/
 │   ├── materials/              ← Phase 6 offline pipeline (Track D). Never imported by the app, never imports from src/
 │   │   ├── generate.mjs        ← CLI: plan / run / rebuild / mock (see §3.4)
-│   │   ├── serp.mjs, gemini.mjs ← the two API clients (one call each per new item)
+│   │   ├── serp.mjs, gemini.mjs, icon.mjs ← the API clients (SerpAPI search; Gemini estimate; Gemini silhouette)
+│   │   ├── svgpath.mjs         ← SVG path parse / flatten / convex hull / simplify (pure; svgpath.test.mjs)
 │   │   ├── convert.mjs         ← estimate → Material (pure), validation, tunable LIMITS
 │   │   ├── mock.mjs            ← deterministic fake estimates, no API
 │   │   ├── lib.mjs             ← paths, cost guards, caches, ledger
@@ -353,9 +476,12 @@ Elevation/
     │   ├── layout.tsx          ← root layout, Space Grotesk font
     │   ├── globals.css         ← design tokens (CSS vars) + reset
     │   ├── page.tsx            ← renders <Game />
-    │   └── page.module.css
+    │   ├── page.module.css
+    │   └── dev/page.tsx        ← /dev Dev Lab (404 in production)
     ├── components/
+    │   ├── dev/DevLab.tsx               ← Dev Lab: pick pieces / disaster / build time, play via <Game dev={…}>
     │   ├── ui/                          ← Button (Primary / Secondary / Disabled), Badge (Neutral)
+    │   │   (game/ also holds TutorialScreen.tsx, Figma 01, and SoundToggle.tsx)
     │   └── game/                        ← each .tsx has a sibling .module.css
     │       ├── Game.tsx                 ← orchestrator: loads today's puzzle + device, switches intro / play / results, saves + submits the run
     │       ├── IntroScreen.tsx          ← 00 — Daily Intro: today's materials, Start Building
@@ -379,6 +505,7 @@ Elevation/
         │   ├── dailyScale.ts            ← per-day piece scale + MAX_STACK_PX (100% height)
         │   ├── scoring.ts               ← HEIGHT_BANDS, bandFor(), HeightResult, TestResult, stabilityScore(), combinedScore()
         │   └── draw.ts                  ← custom canvas renderer (platform, pieces, meteors, water, height line)
+        ├── juice/                       ← Phase 7: audio.ts (WebAudio synth), particles.ts, shake.ts, index.ts (events → effects)
         ├── daily/                       ← Phase 5 (Track C)
         │   ├── date.ts                  ← UTC date, rollover countdown, Day #N
         │   ├── puzzle.ts                ← generatePuzzle(date), stored-row conversion
@@ -420,6 +547,14 @@ npm run lint
 npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first so Next generates its route types (e.g. LayoutProps)
 ```
 
+**Dev Lab: `http://localhost:3000/dev`** (dev builds only; a 404 in production). Use it to test every object, disaster and screen:
+- **Pieces:** click any library card to add it, any number of times (right-click removes one). Click a selected slot to remove it. Presets: Today, any date (that day's set, disaster and seed), Random 10, One of each, Clear. Each card shows the size, mass, friction and hitbox kind, and flags generated items that have no icon. A line shows the set's px/m and its smallest and largest piece on the board.
+- **Disaster, seed and build time:** 10s, 30s, 2 min (daily) or 10 min (`BuildSessionOptions.buildSeconds`).
+- **Start:** Play (straight to the build), Via intro screen, or Via tutorial. "Reset tutorial seen" brings the first-run tutorial back. During a run, a bottom-right bar has **← Dev Lab** and **Restart**.
+- Runs go through the real `Game` with a `dev` prop: always practice, no network, nothing saved. The setup is remembered in localStorage (`elevation:dev-setup`).
+
+**What you should see (Phase 7):** the generated items are black silhouettes (the newest piece in blue) on the board, in the tray, on the intro and in the drag ghost. The first "Start Building" shows the "How to Play" tutorial once (Skip counts as seen; clear `elevation:tutorial-seen` in localStorage to see it again), and the intro's "How to Play" link opens it any time. While building, the ruler shows a blue live-height pill. Impacts kick up dust and make sound after your first click, and a speaker toggle under the zoom box mutes it. The screen shakes only during the disaster. Good preview day: `?date=2026-11-22&disaster=earthquake` (elephant + giraffe). Dev console hooks: `window.__elevation`, `__view`, `__juice`, `__sound`.
+
 **What you should see (Phase 6):** next to the board there's a small zoom box (`+`, the current zoom, `−`). Scroll over the board to zoom toward the cursor; at more than 1× drag empty space to pan; click the zoom value to reset. With the real library empty, the game looks the same as Phase 5 otherwise. To try big and tiny items: `npm run materials:mock`, set `NEXT_PUBLIC_MOCK_ITEMS=1` in `.env.local`, restart `npm run dev` (it runs offline while that flag is on).
 
 **What you should see (Phase 5):** the Figma "00 — Daily Intro" screen first ("Today's Stack", 10 materials, Start Building). After a run, "04 — Results" with the score cards, the percentile, the leaderboard and a name box. Reloading after playing goes straight to results. In dev, add `?replay=1` to play again.
@@ -449,6 +584,7 @@ npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first 
 | `SERPAPI_API_KEY` | Phase 6 (offline script only) | serpapi.com → Dashboard | the local `.env.local` of whoever runs the script. **Not** on Vercel |
 | `GEMINI_API_KEY` | Phase 6 (offline script only) | aistudio.google.com → Get API key | the local `.env.local` of whoever runs the script. **Not** on Vercel |
 | `GEMINI_MODEL` | optional | any Gemini model id | `.env.local`. Default `gemini-3.1-flash-lite` (cheapest). Changing it makes cached estimates stale, so the next run pays again |
+| `GEMINI_ICON_MODEL` | optional | any Gemini model id | `.env.local`. Default `gemini-3.8-flash` (Flash-Lite drew blobs). Changing it makes cached icons stale |
 | `NEXT_PUBLIC_MOCK_ITEMS` | optional, dev only | set to `1` | `.env.local`. Adds the FAKE items and forces offline mode. Ignored in production |
 
 The SerpAPI and Gemini keys must never get a `NEXT_PUBLIC_` prefix and must never be imported from `src/`, because the deployed game must not call those APIs.
@@ -515,6 +651,10 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [ ] The build timer pauses while the tab is hidden, since it shares the physics clock. Decide whether a daily competitive run needs wall-clock time instead.
   - [x] ~~"Done building" button~~ Added as **Start Early** in the build top bar (not in Figma; styled like the Primary / Disabled Button). It calls `endBuild()` and is disabled until at least one piece is placed.
   - [ ] Height counts every placed piece still on the board, including one dangling off the platform edge. Revisit along with §4.7 / §4.8.
+- **Raised during Phase 7**
+  - [ ] **Silhouette quality is uneven.** Gemini's outlines are good for simple upright objects (cone, bottle, can, hydrant, office chair, couch) and rough for animals (the elephant is a blob with legs and a trunk). Hand-drawn SVGs for the worst ones would beat more paid redraws; keep them in the same 0–100, bottom-resting format so `convert.mjs` can use them.
+  - [ ] **Silhouettes stay at 32px in the tray** (relative size not shown, as in Figma). Revisit together with the Phase 6 size-spread question.
+  - [ ] Dev console warning **"Multiple GoTrueClient instances detected"** (Supabase) appeared once in the full-flow run. `getSupabase()` is a module singleton, so this probably comes from dev bundling or HMR. It's harmless; check that it doesn't appear in the production build.
 - **Raised during Phase 6**
   - [x] **Size spread: accepted as-is (decided 2026-10-25).** Pure real proportions stay, with no per-day size cap. Measured on 40 days (2026-11-01 onward) with the 20 real items + 3 basic shapes (dev preview: `?date=YYYY-MM-DD`), so the trade-off is on record:
     - **No day has a piece wider than the platform** (widest 180px vs 220px), so the elephant fear was unfounded.
@@ -526,7 +666,7 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [x] **`gemini-2.5-flash-lite` is no longer available to new API users** (404). The default is now `gemini-3.1-flash-lite` ($0.25 / $1.50 per 1M tokens). The pricing page listed 2.5 as available; the canary caught it.
   - [ ] **Gemini returned an intermittent 403** ("caller does not have permission") twice in ~21 requests; the identical request worked on retry. The pipeline now retries a Gemini 403 once after 15s, then stops. If it becomes frequent, check the API key's restrictions in Google AI Studio.
   - [ ] **Sponsor track (§9.2)** still needs confirming with the organizers that an offline pipeline counts.
-  - [ ] Tray icons are the physics outline (no art). Fine for flat minimalist; revisit if generated shapes look too abstract.
+  - [x] ~~Tray icons are the physics outline (no art)~~ **Phase 7:** generated items now show Gemini-drawn silhouettes everywhere, and the hitbox is the silhouette's hull.
 - **Raised during Phase 4**
   - [ ] **Disaster strength.** A bare 4-square column (7.2 m, Mound) collapses in about 4s (meteor), 10s (wind, earthquake) and 17s (flood). That's harsh on a naive tower; playtest with real builds before tuning. A flat pile with nothing elevated survives the full 75s (stability 5.0), which may be too generous.
   - [ ] The Stability meter shows the **share of the tower still standing**, as in Figma ("Stability: 68%" mid-test). The **stability score** is survival time (§5.2). Same word, two meanings: consider renaming one.

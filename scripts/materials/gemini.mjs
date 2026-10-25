@@ -62,33 +62,42 @@ export function describeRequest(request) {
   );
 }
 
-// One generateContent call. Returns the parsed estimate and token usage.
-export async function estimateObject({ name, image, model, apiKey }) {
+// One generateContent call with a JSON-mode request body. Returns the parsed JSON (or a
+// parse error) and token usage. Shared by the estimate and icon stages.
+export async function callGemini({ model, apiKey, request }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   let response;
   try {
     response = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify(buildRequest(name, image)),
+      body: JSON.stringify(request),
     });
   } catch (error) {
-    throw new ApiError("gemini", 0, redact(error.message, apiKey));
+    const cause = error.cause?.code ?? error.cause?.message ?? "";
+    throw new ApiError("gemini", 0, redact(`${error.message}${cause ? ` (${cause})` : ""}`, apiKey));
   }
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new ApiError("gemini", response.status, redact(body.error?.message ?? response.statusText, apiKey));
   }
 
+  // Thinking tokens are billed as output, so they're counted as output here.
   const usage = {
     inputTokens: body.usageMetadata?.promptTokenCount ?? 0,
-    outputTokens: body.usageMetadata?.candidatesTokenCount ?? 0,
+    outputTokens: (body.usageMetadata?.candidatesTokenCount ?? 0) + (body.usageMetadata?.thoughtsTokenCount ?? 0),
   };
   const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    return { estimate: JSON.parse(text), usage, parseError: null };
+    return { json: JSON.parse(text), usage, parseError: null };
   } catch {
     const reason = body.candidates?.[0]?.finishReason ?? body.promptFeedback?.blockReason ?? "no JSON";
-    return { estimate: null, usage, parseError: `unparseable answer (${reason})` };
+    return { json: null, usage, parseError: `unparseable answer (${reason})` };
   }
+}
+
+// One estimate call. Returns the parsed estimate and token usage.
+export async function estimateObject({ name, image, model, apiKey }) {
+  const { json, usage, parseError } = await callGemini({ model, apiKey, request: buildRequest(name, image) });
+  return { estimate: json, usage, parseError };
 }

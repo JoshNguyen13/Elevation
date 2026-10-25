@@ -1,0 +1,89 @@
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 56px 72px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.skip {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.skip:hover {
+  color: var(--color-ink);
+}
+
+.steps {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  list-style: none;
+}
+
+/* Figma Step Card: 300 wide, 1px border, radius 12, 20px padding. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 300px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-step-card);
+  background: var(--color-background);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--color-accent);
+  color: var(--color-background);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.cardBody {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.footer {
+  display: flex;
+  justify-content: center;
+}

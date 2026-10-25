@@ -1,0 +1,12 @@
+{
+  "name": "couch",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1289,
+    "outputTokens": 228
+  },
+  "path": "M10 100 L10 88 C10 88 15 88 18 88 L18 96 L24 96 L24 88 L76 88 L76 96 L82 96 L82 88 C85 88 90 88 90 100 L95 100 L95 50 C95 44 90 40 82 40 L78 40 C74 40 70 44 70 50 L70 55 C65 55 35 55 30 55 L30 50 C30 44 26 40 22 40 L18 40 C10 40 5 44 5 50 L5 100 Z"
+}

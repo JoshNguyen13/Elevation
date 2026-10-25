@@ -1,0 +1,12 @@
+{
+  "name": "bucket",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1289,
+    "outputTokens": 3397
+  },
+  "path": "M13 8Q50 5 87 8L87 14L83 14L83 19L88 19L88 25L84 25L84 29L90 29L90 32L93 33L93 37L89 38L84 38L78 97Q50 100 22 97L16 38L11 38L7 37L7 33L10 32L10 29L16 29L16 25L12 25L12 19L17 19L17 14L13 14Z"
+}

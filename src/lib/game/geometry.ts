@@ -42,6 +42,13 @@ function centroid(vertices: Vec[]): Vec {
   return { x: cx / (3 * area), y: cy / (3 * area) };
 }
 
+// Where shapeOutline() puts the origin, in the shape's own METER frame: the centroid
+// for convex shapes, (0, 0) for the others (they're built centered). A Matter body's
+// position is this point, so a silhouette in the same frame is drawn relative to it.
+export function shapeCentroid(shape: PhysicsShape): Vec {
+  return shape.kind === "convex" ? centroid(shape.vertices) : { x: 0, y: 0 };
+}
+
 // The shape's outline at angle 0, centered on its centroid, in px at the given
 // scale. Matter bodies are built from these same vertices, so drawing and hitbox agree.
 export function shapeOutline(shape: PhysicsShape, pxPerMeter = PX_PER_METER): Vec[] {

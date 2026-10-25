@@ -1,0 +1,12 @@
+{
+  "name": "watermelon",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1307,
+    "outputTokens": 168
+  },
+  "path": "M74 34C82 25 87 18 84 9C81 2 75 0 71 5C68 9 73 17 76 25C76 28 73 31 71 33C64 26 55 21 44 21C20 21 0 40 0 64C0 84 19 100 44 100C67 100 86 85 88 64C89 53 84 42 74 34Z"
+}

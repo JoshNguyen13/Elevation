@@ -3,7 +3,7 @@
 import type { PointerEvent } from "react";
 import { getMaterial } from "@/data/materials";
 import type { Piece } from "@/lib/game/buildSession";
-import { iconOutline } from "@/lib/game/icon";
+import { glyph } from "@/lib/game/icon";
 import { colors } from "@/lib/theme";
 import PieceSvg from "./PieceSvg";
 import styles from "./PieceTray.module.css";
@@ -32,7 +32,7 @@ export default function PieceTray({ pieces, enabled, onPickUp }: PieceTrayProps)
               aria-label={getMaterial(piece.materialId).name}
               onPointerDown={(e) => available && onPickUp(piece.uid, e)}
             >
-              <PieceSvg outline={iconOutline(piece.materialId)} fill={colors.ink} />
+              <PieceSvg {...glyph(piece.materialId)} fill={colors.ink} />
             </button>
           );
         })}

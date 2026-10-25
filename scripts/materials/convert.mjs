@@ -2,8 +2,19 @@
 // no files. Every number here is a tunable; because estimates are cached, changing a
 // rule and running `npm run materials:rebuild` costs nothing.
 import { slugify } from "./lib.mjs";
+import {
+  bounds,
+  convexHull,
+  flatten,
+  parsePath,
+  polygonArea,
+  simplifyHull,
+  transformPath,
+} from "./svgpath.mjs";
 
 export const ARCHETYPES = ["wide-stable", "tall-narrow", "round", "flat-wide", "irregular"];
+// Longest icon path the library accepts (the meter-frame re-serialization of a silhouette).
+export const MAX_ICON_PATH_CHARS = 12000;
 // Ids the library may never use (they belong to the basic shapes).
 export const RESERVED_IDS = ["square", "triangle", "pentagon"];
 
@@ -21,6 +32,8 @@ export const LIMITS = {
   massPower: 0.35,
   minMass: 0.4,
   maxMass: 12,
+  // Most hitbox points when the hull comes from a silhouette.
+  maxHullVertices: 12,
   // friction = base + roughness * span, clamped. The basic shapes sit at 1-1.3.
   frictionBase: 0.7,
   frictionSpan: 0.8,
@@ -55,7 +68,8 @@ function displayName(name) {
 }
 
 // Estimate -> Material (src/data/materials.ts). Sizes in real-world metres.
-export function toMaterial(name, estimate) {
+// iconPath (optional): the raw silhouette path from the icon stage (0-100 box, y down).
+export function toMaterial(name, estimate, iconPath) {
   const check = validateEstimate(estimate);
   if (!check.ok) throw new Error(`invalid estimate for "${name}": ${check.reason}`);
   const id = slugify(name);
@@ -69,12 +83,38 @@ export function toMaterial(name, estimate) {
   height = Math.max(height, width / LIMITS.maxAspect);
   const taper = clamp(estimate.taper, LIMITS.minTaper, 1);
 
+  // A silhouette (from the icon stage) decides the shape; without one, the estimate's
+  // archetype + taper rules below do, as before.
+  const silhouette = iconPath ? readSilhouette(iconPath) : null;
+
   let shape;
   let area;
+  let icon;
   if (estimate.archetype === "round") {
+    // Round things keep a circle hitbox so they roll; the art is centred and fitted inside.
     const radius = (width + height) / 4;
     shape = { kind: "circle", radius: round3(radius) };
     area = Math.PI * radius * radius;
+    if (silhouette) {
+      const { b } = silhouette;
+      const scale = (2 * radius) / Math.max(b.w, b.h);
+      icon = iconIn(silhouette, { x: b.minX + b.w / 2, y: b.minY + b.h / 2 }, scale);
+    }
+  } else if (silhouette) {
+    // Same real size (bbox area = width x height), the silhouette's own proportions.
+    // Frame: x centred, top edge at y = 0, y down. The hitbox is its simplified convex hull.
+    const { b, points } = silhouette;
+    const scale = Math.sqrt((width * height) / (b.w * b.h));
+    const origin = { x: b.minX + b.w / 2, y: b.minY };
+    const placed = points.map((p) => ({ x: (p.x - origin.x) * scale, y: (p.y - origin.y) * scale }));
+    // Hull again after rounding to mm: on thin items (a book), rounding can put a tiny
+    // dent in the outline, and the engine needs it strictly convex.
+    const hull = convexHull(
+      simplifyHull(convexHull(placed), LIMITS.maxHullVertices).map((p) => ({ x: round3(p.x), y: round3(p.y) })),
+    );
+    shape = { kind: "convex", vertices: hull };
+    area = polygonArea(hull);
+    icon = iconIn(silhouette, origin, scale);
   } else if (taper >= LIMITS.boxTaper) {
     shape = { kind: "box", width: round3(width), height: round3(height) };
     area = width * height;
@@ -112,7 +152,36 @@ export function toMaterial(name, estimate) {
     mass: round3(mass),
     friction: round3(friction),
     archetype: estimate.archetype,
+    ...(icon ? { icon } : {}),
   };
+}
+
+// Checks a silhouette path from the icon stage; a bad one is cached as invalid.
+export function validateIcon(path) {
+  try {
+    readSilhouette(path);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+}
+
+function readSilhouette(path) {
+  const segments = parsePath(path);
+  const points = flatten(segments);
+  if (points.length < 3) throw new Error("silhouette has fewer than 3 points");
+  if (!points.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))) throw new Error("NaN in silhouette");
+  const b = bounds(points);
+  if (!(b.w > 0.5 && b.h > 0.5)) throw new Error("silhouette has no area");
+  return { segments, points, b };
+}
+
+// The art in the item's meter frame (the same frame as shape.vertices / the circle's centre).
+function iconIn(silhouette, origin, scale) {
+  const path = transformPath(silhouette.segments, origin, scale);
+  const b = bounds(flatten(parsePath(path, MAX_ICON_PATH_CHARS)));
+  const r4 = (v) => Math.round(v * 10000) / 10000;
+  return { path, box: { x: r4(b.minX), y: r4(b.minY), w: r4(b.w), h: r4(b.h) } };
 }
 
 // Whether every turn has the same direction (the engine needs convex hulls).
@@ -165,10 +234,31 @@ export function validateLibrary(items) {
       if (!Number.isInteger(s.sides) || s.sides < 3 || !sideOk(s.radius)) problems.push(`${where}: polygon`);
     } else if (s?.kind === "convex") {
       const v = s.vertices;
-      if (!Array.isArray(v) || v.length < 3 || v.length > 8 || !v.every((p) => isNum(p.x) && isNum(p.y))) {
+      if (
+        !Array.isArray(v) ||
+        v.length < 3 ||
+        v.length > LIMITS.maxHullVertices ||
+        !v.every((p) => isNum(p.x) && isNum(p.y))
+      ) {
         problems.push(`${where}: convex vertices`);
       } else if (!isConvex(v)) problems.push(`${where}: convex shape is not convex`);
     } else problems.push(`${where}: unknown shape kind`);
+    if (item.icon !== undefined) {
+      const { path, box } = item.icon ?? {};
+      // The game feeds this to Path2D and an SVG d attribute: absolute M L C Q Z and numbers only.
+      if (typeof path !== "string" || path.length > MAX_ICON_PATH_CHARS || !/^[MLCQZ0-9.\- ]+$/.test(path)) {
+        problems.push(`${where}: icon path`);
+      } else {
+        try {
+          parsePath(path, MAX_ICON_PATH_CHARS);
+        } catch {
+          problems.push(`${where}: icon path does not parse`);
+        }
+      }
+      if (!box || ![box.x, box.y, box.w, box.h].every(isNum) || box.w <= 0 || box.h <= 0) {
+        problems.push(`${where}: icon box`);
+      }
+    }
   });
   return problems;
 }

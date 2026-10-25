@@ -1,22 +1,26 @@
 #!/usr/bin/env node
 // Offline materials pipeline (§3.4). Grows src/data/items.generated.json with
-// real-world objects: one SerpAPI image search + one Gemini estimate per NEW item.
+// real-world objects. Per NEW item: one SerpAPI image search, one Gemini estimate
+// (size, density, ...) and one Gemini icon (a silhouette whose convex hull is the hitbox).
 //
-//   npm run materials:plan                      what would a run do and cost? (no network, no keys)
-//   npm run materials:run -- --limit 1          really call the APIs for at most 1 new item
-//   npm run materials:run -- --limit 1 --dry-run   show the exact requests, send nothing
-//   npm run materials:rebuild                   re-derive items from the caches (free)
-//   npm run materials:mock                      fake items into src/data/items.mock.json (free)
+//   npm run materials:plan                         what would a run do and cost? (no network, no keys)
+//   npm run materials:run -- --limit 1             really call the APIs for at most 1 item
+//   npm run materials:run -- --limit 1 --dry-run  show the exact requests, send nothing
+//   add --existing to only touch items already in the library (e.g. add missing icons)
+//   add --redraw --only "<name>" to pay again for one item's (valid but poor) icon
+//   npm run materials:rebuild                      re-derive items from the caches (free)
+//   npm run materials:mock                         fake items into src/data/items.mock.json (free)
 //
-// Cost rules: see CONTEXT.md and lib.mjs. In short: nothing is ever paid for twice
-// (every API answer is cached on disk), a run needs an explicit --limit, and any
-// API error stops the run.
+// Cost rules: see CONTEXT.md and lib.mjs. Nothing is ever paid for twice (every API
+// answer is cached on disk), a run needs an explicit --limit, and any API error stops it.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { toMaterial, validateEstimate, validateLibrary } from "./convert.mjs";
+import { toMaterial, validateEstimate, validateIcon, validateLibrary } from "./convert.mjs";
 import { buildRequest, describeRequest, estimateObject } from "./gemini.mjs";
+import { ICON_MIN_PROMPT_VERSION, ICON_PROMPT_VERSION, buildIconRequest, drawIcon } from "./icon.mjs";
 import {
   DEFAULT_DELAY_MS,
+  DEFAULT_ICON_MODEL,
   DEFAULT_MODEL,
   MAX_CONSECUTIVE_INVALID,
   MAX_ITEMS_PER_RUN,
@@ -47,11 +51,15 @@ function parseArgs(argv) {
     else if (arg === "--rebuild") args.rebuild = true;
     else if (arg === "--dry-run") args.dryRun = true;
     else if (arg === "--retry-invalid") args.retryInvalid = true;
+    else if (arg === "--redraw") args.redraw = true;
+    else if (arg === "--existing") args.existing = true;
     else if (arg === "--limit") args.limit = Number(argv[++i]);
     else if (arg === "--delay-ms") args.delayMs = Number(argv[++i]);
     else if (arg === "--only") (args.only ??= []).push(argv[++i]);
     else fail(`Unknown option: ${arg}`);
   }
+  // Redrawing pays again for a valid icon, so it's only ever for named items.
+  if (args.redraw && !args.only) fail("--redraw needs --only \"<name>\" (it pays again for a valid icon).");
   return args;
 }
 
@@ -60,50 +68,96 @@ function fail(message) {
   process.exit(1);
 }
 
-// --- State ---------------------------------------------------------------------
+// --- Caches ---------------------------------------------------------------------
 
 const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+const iconModel = process.env.GEMINI_ICON_MODEL || DEFAULT_ICON_MODEL;
 const cachePath = {
   serp: (slug) => join(PATHS.serp, `${slug}.json`),
   gemini: (slug) => join(PATHS.gemini, `${slug}.json`),
+  icon: (slug) => join(PATHS.icons, `${slug}.json`),
   image: (slug) => join(PATHS.images, `${slug}.img`),
 };
 
-// A Gemini cache entry only counts if it's for this prompt version and model.
-function geminiCache(slug) {
+// A cache entry only counts if it's for the current prompt version and model.
+function estimateCache(slug) {
   const entry = readJson(cachePath.gemini(slug), null);
   return entry && entry.promptVersion === PROMPT_VERSION && entry.model === model ? entry : null;
 }
 
-function statusOf(name, library, args) {
+// Icons from any prompt version since ICON_MIN_PROMPT_VERSION still count.
+function iconCache(slug) {
+  const entry = readJson(cachePath.icon(slug), null);
+  return entry && entry.promptVersion >= ICON_MIN_PROMPT_VERSION && entry.model === iconModel ? entry : null;
+}
+
+function cachedImage(slug) {
+  const serp = readJson(cachePath.serp(slug), null);
+  return serp?.imageMime && existsSync(cachePath.image(slug))
+    ? { mime: serp.imageMime, bytes: readFileSync(cachePath.image(slug)) }
+    : null;
+}
+
+// The item the caches describe right now (null if there's no valid estimate).
+function itemFromCache(name) {
   const slug = slugify(name);
-  if (library.some((item) => item.id === slug)) return "in-library";
-  const gem = geminiCache(slug);
-  if (gem?.status === "ok") return "estimate-cached";
-  if (gem?.status === "invalid") return args.retryInvalid ? needs(slug) : "invalid-cached";
-  return needs(slug);
+  const est = estimateCache(slug);
+  if (est?.status !== "ok") return null;
+  const icon = iconCache(slug);
+  return toMaterial(name, est.estimate, icon?.status === "ok" ? icon.path : undefined);
 }
 
-function needs(slug) {
-  return existsSync(cachePath.serp(slug)) ? "needs-gemini" : "needs-both";
+// What a name still needs. Paid calls are only ever for answers that aren't cached.
+function needsOf(name, args) {
+  const slug = slugify(name);
+  const est = estimateCache(slug);
+  const icon = iconCache(slug);
+  if (est?.status === "invalid" && !args.retryInvalid) return { skip: "estimate invalid (cached)" };
+  const estimate = est?.status !== "ok";
+  const drawing = !icon || (icon.status === "invalid" && args.retryInvalid) || Boolean(args.redraw);
+  const search = (estimate || drawing) && !existsSync(cachePath.serp(slug));
+  return { estimate, drawing, search, paid: estimate || drawing };
 }
 
+// --existing: only items already in the library (e.g. to add icons without
+// accidentally paying for brand-new candidates).
 function targetNames(args) {
   const candidates = readJson(PATHS.candidates, []);
   const names = args.only ?? candidates;
+  const inLibrary = new Set(readJson(PATHS.library, []).map((item) => item.id));
   const unique = new Map();
   for (const name of names) {
     const slug = slugify(name);
-    if (slug && !unique.has(slug)) unique.set(slug, name.trim());
+    if (!slug || unique.has(slug)) continue;
+    if (args.existing && !inLibrary.has(slug)) continue;
+    unique.set(slug, name.trim());
   }
   return [...unique.values()];
+}
+
+// Replace the item with this id, or append it. Returns whether anything changed.
+function upsert(library, item) {
+  const at = library.findIndex((existing) => existing.id === item.id);
+  if (at === -1) {
+    library.push(item);
+    return true;
+  }
+  if (JSON.stringify(library[at]) === JSON.stringify(item)) return false;
+  library[at] = item;
+  return true;
+}
+
+function finalizeLibrary(library) {
+  const problems = validateLibrary(library);
+  if (problems.length) fail(`Library failed validation, NOT written:\n  ${problems.join("\n  ")}`);
+  writeJsonAtomic(PATHS.library, library);
 }
 
 function printLedger() {
   const t = ledgerTotals();
   console.log(
     `Lifetime real calls: ${t.serpapi} SerpAPI, ${t.gemini} Gemini ` +
-      `(${t.inputTokens + t.outputTokens} tokens, est. ${formatUsd(t.estimatedUsd)} at flash-lite prices)`,
+      `(${t.inputTokens + t.outputTokens} tokens, est. ${formatUsd(t.estimatedUsd)} at list prices)`,
   );
 }
 
@@ -112,25 +166,37 @@ function printLedger() {
 function plan(args) {
   const library = readJson(PATHS.library, []);
   const names = targetNames(args);
-  const counts = {
-    "in-library": 0,
-    "estimate-cached": 0,
-    "invalid-cached": 0,
-    "needs-gemini": 0,
-    "needs-both": 0,
-  };
-  for (const name of names) counts[statusOf(name, library, args)] += 1;
+  let complete = 0;
+  let free = 0;
+  let skipped = 0;
+  let serp = 0;
+  let estimates = 0;
+  let icons = 0;
+  for (const name of names) {
+    const need = needsOf(name, args);
+    if (need.skip) {
+      skipped += 1;
+      continue;
+    }
+    if (need.paid) {
+      serp += need.search ? 1 : 0;
+      estimates += need.estimate ? 1 : 0;
+      icons += need.drawing ? 1 : 0;
+      continue;
+    }
+    const item = itemFromCache(name);
+    const current = library.find((existing) => existing.id === item.id);
+    if (current && JSON.stringify(current) === JSON.stringify(item)) complete += 1;
+    else free += 1;
+  }
 
-  console.log(`\nMaterials plan: ${names.length} candidate(s), model ${model}, prompt v${PROMPT_VERSION}`);
-  console.log(`  already in the library:     ${counts["in-library"]}`);
-  console.log(`  estimate cached (free):     ${counts["estimate-cached"]}  -> converted with no API call`);
-  console.log(`  invalid answer cached:      ${counts["invalid-cached"]}  -> skipped (--retry-invalid to pay again)`);
-  console.log(`  search cached, no estimate: ${counts["needs-gemini"]}  -> 1 Gemini call each`);
-  console.log(`  nothing cached:             ${counts["needs-both"]}  -> 1 SerpAPI + 1 Gemini call each`);
-  const serp = counts["needs-both"];
-  const gemini = counts["needs-both"] + counts["needs-gemini"];
-  console.log(`\nA full run would make ${serp} SerpAPI and ${gemini} Gemini call(s).`);
-  console.log(`Nothing was sent. To spend: npm run materials:run -- --limit N   (N <= ${MAX_ITEMS_PER_RUN})`);
+  console.log(`\nMaterials plan: ${names.length} name(s), estimate ${model} v${PROMPT_VERSION}, icon ${iconModel} v${ICON_PROMPT_VERSION}`);
+  console.log(`  complete (in library, up to date):  ${complete}`);
+  console.log(`  everything cached (free):           ${free}  -> (re)built with no API call`);
+  console.log(`  estimate invalid (cached):          ${skipped}  -> skipped (--retry-invalid to pay again)`);
+  console.log(`  need paid calls:                    ${names.length - complete - free - skipped}`);
+  console.log(`\nA full run would make ${serp} SerpAPI and ${estimates + icons} Gemini call(s) (${estimates} estimate, ${icons} icon).`);
+  console.log(`Nothing was sent. To spend: npm run materials:run -- --limit N   (N <= ${MAX_ITEMS_PER_RUN} items)`);
   console.log(`To test for free:          npm run materials:mock\n`);
   printLedger();
 }
@@ -151,38 +217,20 @@ function runMock(args) {
 
 function rebuild(args) {
   const library = readJson(PATHS.library, []);
-  const names = targetNames(args);
-  let updated = 0;
-  let added = 0;
-  for (const name of names) {
-    const slug = slugify(name);
-    const gem = geminiCache(slug);
-    if (gem?.status !== "ok") continue;
-    const item = toMaterial(name, gem.estimate);
-    const at = library.findIndex((existing) => existing.id === slug);
-    if (at === -1) {
-      library.push(item);
-      added += 1;
-    } else if (JSON.stringify(library[at]) !== JSON.stringify(item)) {
-      library[at] = item;
-      updated += 1;
-    }
+  let changed = 0;
+  for (const name of targetNames(args)) {
+    const item = itemFromCache(name);
+    if (item && upsert(library, item)) changed += 1;
   }
   finalizeLibrary(library);
-  console.log(`\nRebuild from cache: ${added} added, ${updated} updated. No API calls were made.\n`);
-}
-
-function finalizeLibrary(library) {
-  const problems = validateLibrary(library);
-  if (problems.length) fail(`Library failed validation, NOT written:\n  ${problems.join("\n  ")}`);
-  writeJsonAtomic(PATHS.library, library);
+  console.log(`\nRebuild from cache: ${changed} item(s) added or updated. No API calls were made.\n`);
 }
 
 // --- Real run (spends API quota) ------------------------------------------------------
 
 async function run(args) {
   if (!Number.isInteger(args.limit) || args.limit < 1) {
-    fail(`--run needs an explicit --limit N (how many NEW items to pay for). Try: npm run materials:run -- --limit 1`);
+    fail(`--run needs an explicit --limit N (how many items to pay for). Try: npm run materials:run -- --limit 1`);
   }
   if (args.limit > MAX_ITEMS_PER_RUN) {
     fail(`--limit ${args.limit} is over the safety ceiling of ${MAX_ITEMS_PER_RUN} per run (MAX_ITEMS_PER_RUN in lib.mjs).`);
@@ -191,32 +239,50 @@ async function run(args) {
   const library = readJson(PATHS.library, []);
   const names = targetNames(args);
 
-  // Free work first: cached estimates become items without any API call.
+  // Free work first: anything fully cached is (re)built without an API call.
   const toPay = [];
   let fromCache = 0;
   for (const name of names) {
-    const status = statusOf(name, library, args);
-    if (status === "estimate-cached") {
-      if (!args.dryRun) library.push(toMaterial(name, geminiCache(slugify(name)).estimate));
-      fromCache += 1;
-      console.log(`  cached   ${name}: ${args.dryRun ? "would be added" : "added"} from cache (no API call)`);
-    } else if (status === "needs-gemini" || status === "needs-both") toPay.push({ name, status });
+    const need = needsOf(name, args);
+    if (need.skip) continue;
+    if (need.paid) {
+      toPay.push({ name, need });
+      continue;
+    }
+    const item = itemFromCache(name);
+    if (args.dryRun) {
+      const current = library.find((existing) => existing.id === item.id);
+      if (!current || JSON.stringify(current) !== JSON.stringify(item)) fromCache += 1;
+    } else if (upsert(library, item)) fromCache += 1;
   }
-  if (fromCache > 0 && !args.dryRun) finalizeLibrary(library);
+  if (fromCache > 0) {
+    console.log(`  ${fromCache} item(s) ${args.dryRun ? "would be" : ""} (re)built from cache (no API call)`);
+    if (!args.dryRun) finalizeLibrary(library);
+  }
 
   const batch = toPay.slice(0, args.limit);
   if (batch.length === 0) {
     console.log("\nNothing to pay for. 0 API calls made.\n");
     return printLedger();
   }
-  const serpCalls = batch.filter((b) => b.status === "needs-both").length;
-  console.log(`\nThis run will make up to ${serpCalls} SerpAPI and ${batch.length} Gemini call(s) for: ${batch.map((b) => b.name).join(", ")}`);
+  const serpCalls = batch.filter((b) => b.need.search).length;
+  const geminiCalls = batch.reduce((n, b) => n + (b.need.estimate ? 1 : 0) + (b.need.drawing ? 1 : 0), 0);
+  console.log(
+    `\nThis run will make up to ${serpCalls} SerpAPI and ${geminiCalls} Gemini call(s) for: ` +
+      batch.map((b) => b.name).join(", "),
+  );
 
   if (args.dryRun) {
-    const first = batch[0].name;
-    console.log(`\n--dry-run: nothing sent. The Gemini request for "${first}" would be (key goes in an x-goog-api-key header, not shown):\n`);
-    console.log(describeRequest(buildRequest(first, null)));
-    return console.log("\n(the real request also attaches the reference photo if one was found)\n");
+    const first = batch[0];
+    const image = cachedImage(slugify(first.name));
+    console.log(`\n--dry-run: nothing sent. Keys go in an x-goog-api-key header (not shown).`);
+    if (first.need.estimate) {
+      console.log(`\nEstimate request for "${first.name}":\n${describeRequest(buildRequest(first.name, image))}`);
+    }
+    if (first.need.drawing) {
+      console.log(`\nIcon request for "${first.name}":\n${describeRequest(buildIconRequest(first.name, image, iconModel))}`);
+    }
+    return;
   }
 
   const serpKey = process.env.SERPAPI_API_KEY;
@@ -224,22 +290,31 @@ async function run(args) {
   if (serpCalls > 0 && !serpKey) fail("SERPAPI_API_KEY is not set (put it in .env.local). Nothing was spent.");
   if (!geminiKey) fail("GEMINI_API_KEY is not set (put it in .env.local). Nothing was spent.");
 
-  ensureDir(PATHS.serp);
-  ensureDir(PATHS.gemini);
-  ensureDir(PATHS.images);
-  const spent = { serpapi: 0, gemini: 0, inputTokens: 0, outputTokens: 0 };
+  for (const dir of [PATHS.serp, PATHS.gemini, PATHS.icons, PATHS.images]) ensureDir(dir);
+  const spent = { serpapi: 0, gemini: 0, usd: 0 };
   let consecutiveInvalid = 0;
-  let added = 0;
+  let done = 0;
+  const pause = () => sleep(delayMs);
+  const spend = (usage, usedModel) => {
+    spent.gemini += 1;
+    spent.usd += estimateUsd(usage.inputTokens, usage.outputTokens, usedModel);
+  };
+  const invalid = (what, reason) => {
+    consecutiveInvalid += 1;
+    console.log(`  ${what.padEnd(8)} INVALID answer (${reason}); cached so it won't be paid for again`);
+    if (consecutiveInvalid >= MAX_CONSECUTIVE_INVALID) {
+      throw new Error(`${MAX_CONSECUTIVE_INVALID} invalid answers in a row; stopping. The prompt or model probably needs attention.`);
+    }
+  };
 
   try {
-    for (const [index, { name }] of batch.entries()) {
+    for (const [index, { name, need }] of batch.entries()) {
       const slug = slugify(name);
       console.log(`\n[${index + 1}/${batch.length}] ${name}`);
 
-      // 1. Reference image (SerpAPI, 1 search). Cached forever.
-      let serp = readJson(cachePath.serp(slug), null);
-      if (!serp) {
-        serp = await withOneRetry(() => searchImage(name, serpKey));
+      // 1. Reference photo (SerpAPI, 1 search). Cached forever.
+      if (need.search) {
+        let serp = await withOneRetry(() => searchImage(name, serpKey));
         spent.serpapi += 1;
         recordCall({ api: "serpapi", item: slug });
         writeJsonAtomic(cachePath.serp(slug), serp);
@@ -248,54 +323,72 @@ async function run(args) {
           const image = await downloadThumbnail(serp.picked.thumbnail);
           if (image) {
             writeFileSync(cachePath.image(slug), image.bytes);
-            writeJsonAtomic(cachePath.serp(slug), { ...serp, imageMime: image.mime });
             serp = { ...serp, imageMime: image.mime };
+            writeJsonAtomic(cachePath.serp(slug), serp);
           }
         }
-        await sleep(delayMs);
-      } else {
-        console.log("  serpapi  cached (no call)");
+        await pause();
       }
+      const image = cachedImage(slug);
 
       // 2. Estimate (Gemini, 1 call). Cached forever, as ok or invalid.
-      const image =
-        serp.imageMime && existsSync(cachePath.image(slug))
-          ? { mime: serp.imageMime, bytes: readFileSync(cachePath.image(slug)) }
-          : null;
-      const answer = await withOneRetry(() => estimateObject({ name, image, model, apiKey: geminiKey }));
-      spent.gemini += 1;
-      spent.inputTokens += answer.usage.inputTokens;
-      spent.outputTokens += answer.usage.outputTokens;
-      recordCall({ api: "gemini", item: slug, model, ...answer.usage });
-
-      const check = answer.estimate ? validateEstimate(answer.estimate) : { ok: false, reason: answer.parseError };
-      writeJsonAtomic(cachePath.gemini(slug), {
-        name,
-        model,
-        promptVersion: PROMPT_VERSION,
-        status: check.ok ? "ok" : "invalid",
-        reason: check.ok ? undefined : check.reason,
-        usedImage: Boolean(image),
-        usage: answer.usage,
-        estimate: answer.estimate,
-      });
-
-      if (!check.ok) {
-        consecutiveInvalid += 1;
-        console.log(`  gemini   INVALID answer (${check.reason}); cached so it won't be paid for again`);
-        if (consecutiveInvalid >= MAX_CONSECUTIVE_INVALID) {
-          throw new Error(`${MAX_CONSECUTIVE_INVALID} invalid answers in a row; stopping. The prompt or model probably needs attention.`);
+      if (need.estimate) {
+        const answer = await withOneRetry(() => estimateObject({ name, image, model, apiKey: geminiKey }));
+        spend(answer.usage, model);
+        recordCall({ api: "gemini", stage: "estimate", item: slug, model, ...answer.usage });
+        const check = answer.estimate ? validateEstimate(answer.estimate) : { ok: false, reason: answer.parseError };
+        writeJsonAtomic(cachePath.gemini(slug), {
+          name,
+          model,
+          promptVersion: PROMPT_VERSION,
+          status: check.ok ? "ok" : "invalid",
+          reason: check.ok ? undefined : check.reason,
+          usedImage: Boolean(image),
+          usage: answer.usage,
+          estimate: answer.estimate,
+        });
+        if (!check.ok) {
+          invalid("estimate", check.reason);
+          if (index < batch.length - 1) await pause();
+          continue; // no point drawing an icon for an item we can't build
         }
-      } else {
-        consecutiveInvalid = 0;
-        const item = toMaterial(name, answer.estimate);
-        library.push(item);
-        finalizeLibrary(library);
-        added += 1;
-        console.log(`  gemini   ok (${answer.usage.inputTokens} in / ${answer.usage.outputTokens} out tokens)${image ? " with photo" : " name only"}`);
-        console.log(`  added    ${item.id}: ${JSON.stringify(item.shape)} mass ${item.mass} friction ${item.friction}`);
+        console.log(`  estimate ok (${answer.usage.inputTokens} in / ${answer.usage.outputTokens} out tokens)${image ? " with photo" : " name only"}`);
+        await pause();
       }
-      if (index < batch.length - 1) await sleep(delayMs);
+
+      // 3. Icon (Gemini, 1 call): a silhouette, whose hull becomes the hitbox. Cached forever.
+      if (need.drawing) {
+        const answer = await withOneRetry(() => drawIcon({ name, image, model: iconModel, apiKey: geminiKey }));
+        spend(answer.usage, iconModel);
+        recordCall({ api: "gemini", stage: "icon", item: slug, model: iconModel, ...answer.usage });
+        const check = answer.path ? validateIcon(answer.path) : { ok: false, reason: answer.parseError };
+        writeJsonAtomic(cachePath.icon(slug), {
+          name,
+          model: iconModel,
+          promptVersion: ICON_PROMPT_VERSION,
+          status: check.ok ? "ok" : "invalid",
+          reason: check.ok ? undefined : check.reason,
+          usedImage: Boolean(image),
+          usage: answer.usage,
+          path: answer.path,
+        });
+        if (check.ok) {
+          console.log(`  icon     ok (${answer.usage.inputTokens} in / ${answer.usage.outputTokens} out tokens, ${answer.path.length} chars)`);
+        } else {
+          invalid("icon", check.reason); // the item is still built, with the plain shape
+        }
+      }
+
+      // 4. Build the item from the caches and save it straight away.
+      const item = itemFromCache(name);
+      if (item) {
+        upsert(library, item);
+        finalizeLibrary(library);
+        done += 1;
+        if (!need.drawing || iconCache(slug)?.status === "ok") consecutiveInvalid = 0;
+        console.log(`  saved    ${item.id}: ${item.shape.kind}${item.shape.vertices ? ` (${item.shape.vertices.length} pts)` : ""}, mass ${item.mass}, friction ${item.friction}${item.icon ? ", with silhouette" : ""}`);
+      }
+      if (index < batch.length - 1) await pause();
     }
   } catch (error) {
     console.error(`\nSTOPPED: ${error.message}`);
@@ -304,8 +397,8 @@ async function run(args) {
   }
 
   console.log(
-    `\nThis run: ${spent.serpapi} SerpAPI + ${spent.gemini} Gemini call(s), ${added} item(s) added, ` +
-      `est. Gemini cost ${formatUsd(estimateUsd(spent.inputTokens, spent.outputTokens))}.`,
+    `\nThis run: ${spent.serpapi} SerpAPI + ${spent.gemini} Gemini call(s), ${done} item(s) saved, ` +
+      `est. Gemini cost ${formatUsd(spent.usd)}.`,
   );
   printLedger();
 }

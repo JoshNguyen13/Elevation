@@ -1,0 +1,13 @@
+{
+  "name": "refrigerator",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "invalid",
+  "reason": "unparseable answer (MAX_TOKENS)",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1303,
+    "outputTokens": 3985
+  },
+  "path": null
+}

@@ -2,7 +2,7 @@
 import Button from "@/components/ui/Button";
 import { dayNumber } from "@/lib/daily/date";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
-import { iconOutline } from "@/lib/game/icon";
+import { glyph } from "@/lib/game/icon";
 import { colors } from "@/lib/theme";
 import PieceSvg from "./PieceSvg";
 import styles from "./IntroScreen.module.css";
@@ -15,6 +15,7 @@ interface IntroScreenProps {
   practice: boolean;
   playedYesterday: number | null;
   onStart: () => void;
+  onHowToPlay: () => void;
 }
 
 // 00 — Daily Intro (Figma): today's materials, then Start Building.
@@ -24,6 +25,7 @@ export default function IntroScreen({
   practice,
   playedYesterday,
   onStart,
+  onHowToPlay,
 }: IntroScreenProps) {
   return (
     <div className={styles.screen}>
@@ -45,11 +47,16 @@ export default function IntroScreen({
         <div className={styles.materials}>
           {puzzle.itemIds.map((id, i) => (
             <div key={i} className={styles.slot}>
-              <PieceSvg outline={iconOutline(id)} fill={colors.ink} />
+              <PieceSvg {...glyph(id)} fill={colors.ink} />
             </div>
           ))}
         </div>
-        <Button onClick={onStart}>{alreadyPlayed ? "See Today's Results →" : "Start Building →"}</Button>
+        <div className={styles.actions}>
+          <Button onClick={onStart}>{alreadyPlayed ? "See Today's Results →" : "Start Building →"}</Button>
+          <button type="button" className={styles.howTo} onClick={onHowToPlay}>
+            How to Play
+          </button>
+        </div>
       </section>
 
       <footer className={styles.footer}>

@@ -1,0 +1,12 @@
+{
+  "name": "tennis ball",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1308,
+    "outputTokens": 777
+  },
+  "path": "M50 0C68 0 84 10 93 25L90 27C72 37 62 55 62 76C62 85 65 93 71 100C64 100 57 99 50 100C22 100 0 78 0 50C0 35 7 22 18 13C24 23 35 29 48 29C64 29 78 20 85 7C75 2 63 0 50 0Z"
+}

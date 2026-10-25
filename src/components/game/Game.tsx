@@ -12,13 +12,30 @@ import {
 import { addDays, utcDateString } from "@/lib/daily/date";
 import { generatePuzzle, type DailyPuzzle } from "@/lib/daily/puzzle";
 import { runFromScoreRow, type RunSummary } from "@/lib/daily/run";
-import { getDeviceId, getLocalDisplayName, loadSavedRun, saveRun, setLocalDisplayName } from "@/lib/daily/storage";
+import {
+  getDeviceId,
+  getLocalDisplayName,
+  hasSeenTutorial,
+  loadSavedRun,
+  markTutorialSeen,
+  saveRun,
+  setLocalDisplayName,
+} from "@/lib/daily/storage";
+import { sound } from "@/lib/juice";
 import { DISASTER_TYPES } from "@/lib/physics/disasters";
 import BuildPhase from "./BuildPhase";
 import IntroScreen from "./IntroScreen";
 import ResultsScreen from "./ResultsScreen";
+import TutorialScreen from "./TutorialScreen";
 
-type Screen = "intro" | "play" | "results";
+type Screen = "intro" | "tutorial" | "play" | "results";
+
+// Dev Lab (/dev, dev only): a hand-picked puzzle, always practice and fully local.
+export interface DevRun {
+  puzzle: DailyPuzzle;
+  buildSeconds?: number;
+  startAt: "intro" | "tutorial" | "play";
+}
 
 interface Loaded {
   puzzle: DailyPuzzle;
@@ -42,7 +59,11 @@ function devOverrides() {
   return { practice: params.has("replay") || date !== null, disaster, date };
 }
 
-async function load(): Promise<Loaded> {
+async function load(dev?: DevRun): Promise<Loaded> {
+  if (dev) {
+    const local = { deviceId: getDeviceId(), displayName: getLocalDisplayName() };
+    return { puzzle: dev.puzzle, ...local, run: null, practice: true, playedYesterday: null };
+  }
   const { practice, disaster, date: previewDate } = devOverrides();
   const date = previewDate ?? utcDateString();
   const deviceId = getDeviceId();
@@ -76,14 +97,27 @@ async function load(): Promise<Loaded> {
 
 // Daily intro → build + test → results, around today's puzzle (§6) and this device's
 // identity and one attempt per day (§7).
-export default function Game() {
+export default function Game({ dev }: { dev?: DevRun }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [screen, setScreen] = useState<Screen>("intro");
+  const [screen, setScreen] = useState<Screen>(dev?.startAt ?? "intro");
   const [run, setRun] = useState<RunSummary | null>(null);
+  // Where the tutorial leads when it's done: into a run, or back to the intro.
+  const [afterTutorial, setAfterTutorial] = useState<"play" | "intro">("play");
+
+  // Browsers only allow audio after a user gesture: unlock it on the first click or key.
+  useEffect(() => {
+    const unlock = () => sound.unlock();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    load().then((result) => {
+    load(dev).then((result) => {
       if (cancelled) return;
       setLoaded(result);
       setRun(result.run);
@@ -92,7 +126,7 @@ export default function Game() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [dev]);
 
   const practice = loaded?.practice ?? false;
   const deviceId = loaded?.deviceId;
@@ -111,8 +145,29 @@ export default function Game() {
 
   if (!loaded) return null;
 
+  const alreadyPlayed = run !== null && !practice;
+
+  if (screen === "tutorial") {
+    return (
+      <TutorialScreen
+        ctaLabel={afterTutorial === "play" ? "Got it — Start Building" : "Got it"}
+        onDone={() => {
+          markTutorialSeen();
+          setScreen(afterTutorial);
+        }}
+      />
+    );
+  }
+
   if (screen === "play") {
-    return <BuildPhase puzzle={loaded.puzzle} onComplete={handleComplete} onContinue={() => setScreen("results")} />;
+    return (
+      <BuildPhase
+        puzzle={loaded.puzzle}
+        onComplete={handleComplete}
+        onContinue={() => setScreen("results")}
+        buildSeconds={dev?.buildSeconds}
+      />
+    );
   }
 
   if (screen === "results" && run) {
@@ -131,10 +186,22 @@ export default function Game() {
   return (
     <IntroScreen
       puzzle={loaded.puzzle}
-      alreadyPlayed={run !== null && !practice}
+      alreadyPlayed={alreadyPlayed}
       practice={practice}
       playedYesterday={loaded.playedYesterday}
-      onStart={() => setScreen(run && !practice ? "results" : "play")}
+      onStart={() => {
+        if (alreadyPlayed) return setScreen("results");
+        // First-time players see the tutorial once, on the way into their first run.
+        if (!hasSeenTutorial()) {
+          setAfterTutorial("play");
+          return setScreen("tutorial");
+        }
+        setScreen("play");
+      }}
+      onHowToPlay={() => {
+        setAfterTutorial("intro");
+        setScreen("tutorial");
+      }}
     />
   );
 }

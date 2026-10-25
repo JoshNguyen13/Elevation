@@ -10,9 +10,54 @@ import type { Vec } from "./geometry";
 // meteor: a disaster projectile, not a piece
 export type PieceLook = "placed" | "newest" | "preview" | "blocked" | "meteor";
 
+// A silhouette (src/data/materials.ts `icon`) and where to draw it: the body pose, the
+// px-per-meter scale, and the centroid of the shape in the icon's meter frame.
+export interface DrawnIcon {
+  path: string;
+  x: number;
+  y: number;
+  angle: number;
+  scale: number;
+  cx: number;
+  cy: number;
+}
+
 export interface DrawnPiece {
+  // The hitbox in board px (also what's drawn when there's no silhouette).
   outline: Vec[];
   look: PieceLook;
+  icon?: DrawnIcon | null;
+}
+
+// Path2D parsing isn't free; each silhouette's path string is parsed once.
+const paths = new Map<string, Path2D>();
+function pathFor(d: string): Path2D {
+  let path = paths.get(d);
+  if (!path) {
+    path = new Path2D(d);
+    paths.set(d, path);
+  }
+  return path;
+}
+
+// Fill a silhouette in board px: translate to the body, rotate, meters -> px, centroid to origin.
+function fillIcon(ctx: CanvasRenderingContext2D, icon: DrawnIcon, fill: string, edge: string | null) {
+  ctx.save();
+  ctx.translate(icon.x, icon.y);
+  ctx.rotate(icon.angle);
+  ctx.scale(icon.scale, icon.scale);
+  ctx.translate(-icon.cx, -icon.cy);
+  const path = pathFor(icon.path);
+  ctx.fillStyle = fill;
+  ctx.fill(path);
+  if (edge) {
+    // A hairline in the background colour keeps touching ink silhouettes apart.
+    ctx.lineWidth = 1 / icon.scale;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = edge;
+    ctx.stroke(path);
+  }
+  ctx.restore();
 }
 
 // Board y of the measured-height marker and of the flood's water surface.
@@ -27,7 +72,32 @@ function tracePolygon(ctx: CanvasRenderingContext2D, outline: Vec[]) {
   ctx.closePath();
 }
 
-function drawPiece(ctx: CanvasRenderingContext2D, { outline, look }: DrawnPiece) {
+function drawPiece(ctx: CanvasRenderingContext2D, { outline, look, icon }: DrawnPiece) {
+  if (icon) {
+    if (look === "blocked") {
+      // Grey silhouette + the dashed hitbox, so it reads over both black and accent pieces.
+      ctx.globalAlpha = 0.75;
+      fillIcon(ctx, icon, colors.tick, null);
+      ctx.globalAlpha = 1;
+      tracePolygon(ctx, outline);
+      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = colors.ink;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      return;
+    }
+    ctx.globalAlpha = look === "preview" ? 0.85 : 1;
+    fillIcon(
+      ctx,
+      icon,
+      look === "placed" ? colors.ink : colors.accent,
+      look === "placed" ? colors.background : null,
+    );
+    ctx.globalAlpha = 1;
+    return;
+  }
+
   tracePolygon(ctx, outline);
   ctx.lineJoin = "round";
 

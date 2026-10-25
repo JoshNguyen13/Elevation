@@ -22,17 +22,19 @@ import { PhysicsWorld, type Pose } from "@/lib/physics/world";
 import type { DisasterType } from "@/lib/supabase/types";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE, PLATFORM_RECT } from "./board";
 import { MAX_STACK_PX, pieceScale } from "./dailyScale";
-import type { BoardOverlay, DrawnPiece } from "./draw";
+import type { BoardOverlay, DrawnIcon, DrawnPiece } from "./draw";
 import {
   boundsOf,
   containsPoint,
   overlaps,
+  shapeCentroid,
   shapeOutline,
   transformOutline,
   type Vec,
 } from "./geometry";
 import {
   bandFor,
+  type HeightBand,
   combinedScore,
   stabilityScore,
   type HeightResult,
@@ -97,13 +99,33 @@ export interface BuildSnapshot {
   integrity: number;
   // Stability and combined score, once the test ends.
   outcome: TestResult | null;
+  // Live tower height during the build (§8 HUD), not counting the frozen (floating)
+  // piece. null when nothing is standing. Updated when the shown 0.1 m value changes.
+  live: { heightM: number; percent: number; band: HeightBand } | null;
 }
+
+// Moments the view layer turns into sound, particles and shake (src/lib/juice). Read-only:
+// nothing here feeds back into physics or scores. Positions are board px; strength 0–1.
+export type JuiceEvent =
+  | { kind: "impact"; x: number; y: number; strength: number; meteor: boolean }
+  | { kind: "place" }
+  | { kind: "pickup" }
+  | { kind: "rotate" }
+  | { kind: "fallen"; x: number; y: number }
+  | { kind: "tick"; secondsLeft: number }
+  | { kind: "phase"; phase: Phase; collapsed?: boolean };
+
+// Impacts slower than this (px per step) are silent resting contacts.
+const MIN_IMPACT_SPEED = 1.2;
+const MAX_QUEUED_JUICE = 200;
 
 export interface BuildSessionOptions {
   materialIds?: string[];
   disaster?: DisasterType;
   // Seeds the disaster's randomness (wind direction, meteor spots). Phase 5: the daily seed.
   seed?: number;
+  // Dev Lab only: a shorter or longer build than the daily BUILD_DURATION_S.
+  buildSeconds?: number;
 }
 
 const ROTATION_STEP_RAD = (ROTATION_STEP_DEG * Math.PI) / 180;
@@ -131,6 +153,7 @@ export class BuildSession {
   // Board px per real-world meter for today's set (§5.1).
   readonly pxPerMeter: number;
   private readonly outlines = new Map<string, Vec[]>();
+  private readonly iconFrames = new Map<string, { path: string; cx: number; cy: number } | null>();
   private pieces: Piece[];
   private held: Held | null = null;
   private frozenUid: string | null = null;
@@ -141,6 +164,7 @@ export class BuildSession {
   private buildMsLeft = BUILD_DURATION_S * 1000;
   private settleMsLeft = SETTLE_DURATION_S * 1000;
   private result: HeightResult | null = null;
+  private juiceQueue: JuiceEvent[] = [];
   private revealMsLeft = HEIGHT_REVEAL_S * 1000;
   private readonly disaster: Disaster;
   private testMs = 0;
@@ -157,7 +181,9 @@ export class BuildSession {
     materialIds = PLACEHOLDER_MATERIAL_IDS,
     disaster = "wind",
     seed = 1,
+    buildSeconds = BUILD_DURATION_S,
   }: BuildSessionOptions = {}) {
+    this.buildMsLeft = buildSeconds * 1000;
     this.disaster = createDisaster(disaster, seededRandom(seed));
     this.pxPerMeter = pieceScale(materialIds);
     this.pieces = materialIds.map((materialId, i) => ({
@@ -193,7 +219,50 @@ export class BuildSession {
       speed: this.speed,
       integrity: this.integrity(),
       outcome: this.outcome,
+      live: this.liveHeight(),
     };
+  }
+
+  // --- Live height and juice -------------------------------------------------
+
+  private liveHeight(): BuildSnapshot["live"] {
+    const tops = this.placedPieces()
+      .filter((p) => p.uid !== this.frozenUid)
+      .flatMap((p) => this.world.vertices(p.uid).map((v) => v.y));
+    if (tops.length === 0) return null;
+    const heightPx = Math.max(0, PLATFORM_RECT.y - Math.min(...tops));
+    if (heightPx === 0) return null;
+    const percent = Math.min(100, (heightPx / MAX_STACK_PX) * 100);
+    return { heightM: Math.round((heightPx / this.pxPerMeter) * 10) / 10, percent, band: bandFor(percent) };
+  }
+
+  private juice(event: JuiceEvent) {
+    if (this.juiceQueue.length < MAX_QUEUED_JUICE) this.juiceQueue.push(event);
+  }
+
+  // Everything that happened since the last call (the canvas loop calls this every frame).
+  drainJuice(): JuiceEvent[] {
+    const events = this.juiceQueue;
+    this.juiceQueue = [];
+    return events;
+  }
+
+  // 0–1 continuous screen shake from the disaster itself (the earthquake), testing only.
+  disasterShake(): number {
+    return this.phase === "testing" ? this.disaster.visualShake() : 0;
+  }
+
+  private collectImpacts() {
+    for (const impact of this.world.drainImpacts()) {
+      if (impact.speed < MIN_IMPACT_SPEED) continue;
+      this.juice({
+        kind: "impact",
+        x: impact.x,
+        y: impact.y,
+        strength: Math.min(1, (impact.speed - MIN_IMPACT_SPEED) / 10),
+        meteor: impact.labels.some((label) => label.startsWith("meteor-")),
+      });
+    }
   }
 
   private emit() {
@@ -263,17 +332,39 @@ export class BuildSession {
     return { pose: { x, y, angle: held.angle }, outline, valid: this.isClear(outline, held.uid) };
   }
 
+  // A material's silhouette, with the centroid of its shape (both in meters), or null.
+  private iconFrame(materialId: string) {
+    if (!this.iconFrames.has(materialId)) {
+      const material = getMaterial(materialId);
+      const c = shapeCentroid(material.shape);
+      this.iconFrames.set(materialId, material.icon ? { path: material.icon.path, cx: c.x, cy: c.y } : null);
+    }
+    return this.iconFrames.get(materialId)!;
+  }
+
+  private drawnIcon(materialId: string, pose: Pose): DrawnIcon | null {
+    const frame = this.iconFrame(materialId);
+    return frame && { ...frame, x: pose.x, y: pose.y, angle: pose.angle, scale: this.pxPerMeter };
+  }
+
   drawables(): DrawnPiece[] {
     const placed = this.placedPieces().sort((a, b) => a.placedSeq! - b.placedSeq!);
     const drawn: DrawnPiece[] = placed.map((p) => ({
       outline: this.world.vertices(p.uid),
       look: p.uid === this.frozenUid ? "newest" : "placed",
+      icon: this.drawnIcon(p.materialId, this.world.pose(p.uid)),
     }));
     for (const uid of this.disaster.extraBodyUids()) {
       drawn.push({ outline: this.world.vertices(uid), look: "meteor" });
     }
     const preview = this.getPreview();
-    if (preview) drawn.push({ outline: preview.outline, look: preview.valid ? "preview" : "blocked" });
+    if (preview) {
+      drawn.push({
+        outline: preview.outline,
+        look: preview.valid ? "preview" : "blocked",
+        icon: this.drawnIcon(this.piece(this.held!.uid).materialId, preview.pose),
+      });
+    }
     return drawn;
   }
 
@@ -305,6 +396,7 @@ export class BuildSession {
     if (!this.building || this.held || this.piece(uid).status !== "tray") return;
     this.held = { uid, angle: 0, grab: { x: 0, y: 0 }, pointerClient, pointerBoard, origin: null };
     this.setStatus(uid, "held", null);
+    this.juice({ kind: "pickup" });
     this.emit();
   }
 
@@ -329,6 +421,7 @@ export class BuildSession {
       origin: { pose, frozen, placedSeq: piece.placedSeq! },
     };
     this.setStatus(piece.uid, "held", null);
+    this.juice({ kind: "pickup" });
     this.emit();
     return true;
   }
@@ -345,6 +438,7 @@ export class BuildSession {
     const delta = direction * ROTATION_STEP_RAD;
     if (this.held) {
       this.held = { ...this.held, angle: this.held.angle + delta };
+      this.juice({ kind: "rotate" });
       this.emit();
       return;
     }
@@ -355,7 +449,10 @@ export class BuildSession {
     const pose = this.world.pose(uid);
     const angle = pose.angle + delta;
     const outline = transformOutline(this.outline(this.piece(uid).materialId), pose.x, pose.y, angle);
-    if (isInsideBoard(outline) && this.isClear(outline, uid)) this.world.setAngle(uid, angle);
+    if (isInsideBoard(outline) && this.isClear(outline, uid)) {
+      this.world.setAngle(uid, angle);
+      this.juice({ kind: "rotate" });
+    }
   }
 
   drop() {
@@ -376,6 +473,7 @@ export class BuildSession {
     this.frozenUid = lastPiece ? null : held.uid;
     this.setStatus(held.uid, "placed", this.nextSeq++);
     this.held = null;
+    this.juice({ kind: "place" });
     this.emit();
   }
 
@@ -423,6 +521,7 @@ export class BuildSession {
     this.frozenUid = null;
     this.buildMsLeft = 0;
     this.phase = "settling";
+    this.juice({ kind: "phase", phase: "settling" });
     this.emit();
   }
 
@@ -444,6 +543,7 @@ export class BuildSession {
       this.peakElevation.set(p.uid, PLATFORM_RECT.y - b.maxY);
     }
     this.phase = "measured";
+    this.juice({ kind: "phase", phase: "measured" });
     this.emit();
   }
 
@@ -465,6 +565,7 @@ export class BuildSession {
       this.peakElevation.set(uid, peak);
       if (peak > this.pieceHeight.get(uid)! && b.maxY >= PLATFORM_RECT.y - GROUND_TOLERANCE_PX) {
         this.fallen.add(uid);
+        this.juice({ kind: "fallen", x: (b.minX + b.maxX) / 2, y: b.maxY });
         changed = true;
       }
     }
@@ -481,6 +582,7 @@ export class BuildSession {
       combined: combinedScore(this.result!.percent, stability),
     };
     this.phase = "done";
+    this.juice({ kind: "phase", phase: "done", collapsed });
     // The aftermath plays at normal speed.
     this.speed = 1;
     this.stepBacklogMs = Math.min(this.stepBacklogMs, MAX_FRAME_MS);
@@ -532,6 +634,7 @@ export class BuildSession {
         this.testMs += PHYSICS_STEP_MS;
       }
       this.world.step(PHYSICS_STEP_MS);
+      this.collectImpacts();
       this.stepBacklogMs -= PHYSICS_STEP_MS;
       if (testing) {
         this.removeFallenPieces();
@@ -544,8 +647,12 @@ export class BuildSession {
     if (this.phase === "build") {
       const shownBefore = Math.ceil(this.buildMsLeft / 1000);
       this.buildMsLeft = Math.max(0, this.buildMsLeft - dt);
+      const shownNow = Math.ceil(this.buildMsLeft / 1000);
+      if (shownNow !== shownBefore && shownNow > 0 && shownNow <= 10) this.juice({ kind: "tick", secondsLeft: shownNow });
       if (this.buildMsLeft === 0) this.endBuild();
-      else if (Math.ceil(this.buildMsLeft / 1000) !== shownBefore) this.emit();
+      else if (shownNow !== shownBefore) this.emit();
+      // The live height readout: re-emit only when its shown value changes.
+      else if (this.liveHeight()?.heightM !== this.snapshot.live?.heightM) this.emit();
     } else if (this.phase === "settling") {
       this.settleMsLeft -= dt;
       if (this.settleMsLeft <= 0) this.measure();
@@ -555,6 +662,7 @@ export class BuildSession {
       // Nothing standing to test: the run ends with zero survival.
       if (this.towerUids.length === 0) return this.finishTest(true);
       this.phase = "testing";
+      this.juice({ kind: "phase", phase: "testing" });
       this.emit();
     } else if (this.phase === "testing") {
       if (Math.floor(this.testMs / 1000) !== this.snapshot.testSeconds) this.emit();

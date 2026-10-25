@@ -13,6 +13,11 @@ export type PhysicsShape =
   | { kind: "regularPolygon"; sides: number; radius: number }
   | { kind: "convex"; vertices: { x: number; y: number }[] };
 
+export interface MaterialIcon {
+  path: string;
+  box: { x: number; y: number; w: number; h: number };
+}
+
 export interface Material {
   id: string;
   name: string;
@@ -24,8 +29,10 @@ export interface Material {
   // Restitution is not a field: it is fixed at 0 for every material (§3.2).
   friction: number;
   archetype?: Archetype;
-  // Flat silhouette icon for the tray/canvas (§3.4, §8); unset for basic shapes.
-  icon?: string;
+  // Flat silhouette (§3.4, §8), drawn instead of the hitbox; unset for basic shapes.
+  // `path` is an SVG path (absolute M L C Q Z only) in METERS, in the same frame as
+  // `shape` (convex vertices / the circle's centre); `box` is its bounding box.
+  icon?: MaterialIcon;
 }
 
 // TBD §3.1 — placeholder numbers. Sizes are real-world meters; only their

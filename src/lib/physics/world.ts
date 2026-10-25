@@ -11,6 +11,13 @@ import {
   VELOCITY_ITERATIONS,
 } from "./constants";
 
+export interface Impact {
+  x: number;
+  y: number;
+  speed: number;
+  labels: [string, string];
+}
+
 // Centroid in board px + clockwise rotation in radians.
 export interface Pose {
   x: number;
@@ -37,9 +44,33 @@ export class PhysicsWorld {
     velocityIterations: VELOCITY_ITERATIONS,
   });
   private readonly bodies = new Map<string, Matter.Body>();
+  // New contacts since the last drain, for sound / particles only (never fed back).
+  private impacts: Impact[] = [];
 
   constructor() {
     Matter.Composite.add(this.engine.world, createPlatform());
+    Matter.Events.on(this.engine, "collisionStart", (event) => {
+      for (const pair of event.pairs) {
+        const { bodyA, bodyB, collision } = pair;
+        const rvx = bodyA.velocity.x - bodyB.velocity.x;
+        const rvy = bodyA.velocity.y - bodyB.velocity.y;
+        // Closing speed along the contact normal, in px per step.
+        const speed = Math.abs(rvx * collision.normal.x + rvy * collision.normal.y);
+        const at = collision.supports?.[0] ?? {
+          x: (bodyA.position.x + bodyB.position.x) / 2,
+          y: (bodyA.position.y + bodyB.position.y) / 2,
+        };
+        if (this.impacts.length < 100) {
+          this.impacts.push({ x: at.x, y: at.y, speed, labels: [bodyA.label, bodyB.label] });
+        }
+      }
+    });
+  }
+
+  drainImpacts(): Impact[] {
+    const impacts = this.impacts;
+    this.impacts = [];
+    return impacts;
   }
 
   // outline: centroid-centered px vertices from shapeOutline(), so the hitbox matches the drawing.

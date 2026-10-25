@@ -5,6 +5,7 @@ import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX } from "@/lib/game/board";
 import type { BoardView } from "@/lib/game/boardView";
 import type { BuildSession } from "@/lib/game/buildSession";
 import { drawBoard } from "@/lib/game/draw";
+import { Juice, sound } from "@/lib/juice";
 import styles from "./BoardCanvas.module.css";
 
 interface BoardCanvasProps {
@@ -40,13 +41,26 @@ export default function BoardCanvas({
     canvas.height = BOARD_HEIGHT_PX * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    // Sound, particles and shake: driven by the session's events, never feeding back into it.
+    const juice = new Juice();
+    // Console / test hook (dev only): window.__juice.particles.count, window.__sound
+    if (process.env.NODE_ENV !== "production") Object.assign(window, { __juice: juice, __sound: sound });
+
     let frame = 0;
     let last = performance.now();
     const loop = (now: number) => {
-      session.step(now - last);
+      const dt = now - last;
+      session.step(dt);
       last = now;
+      juice.handle(session.drainJuice(), session.getSnapshot().phase);
+      juice.update(dt);
+
       view.applyTo(ctx, dpr);
+      // Shake moves only the drawing (board px); pointer mapping ignores it.
+      const shake = juice.shake.offset(session.disasterShake());
+      if (shake.x !== 0 || shake.y !== 0) ctx.translate(shake.x, shake.y);
       drawBoard(ctx, session.drawables(), session.overlay());
+      juice.particles.draw(ctx);
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);

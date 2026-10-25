@@ -1,0 +1,12 @@
+{
+  "name": "hardcover book",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 2,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1291,
+    "outputTokens": 3943
+  },
+  "path": "M28 5L87 19C88 20 89 22 88 24L71 94C71 96 69 98 67 100L11 84C9 83 8 81 9 79L25 7C25 5 27 4 28 5Z"
+}

@@ -35,3 +35,32 @@
   color: var(--color-accent);
   font-weight: 700;
 }
+
+/* Live height while building: an accent marker at the ruler's board edge, pointing at the board. */
+.live {
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateY(-50%);
+  transition: top 160ms ease-out;
+}
+
+.liveValue {
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-background);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.liveArrow {
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--color-accent);
+}

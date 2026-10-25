@@ -42,6 +42,24 @@ export function setLocalDisplayName(name: string) {
   write("display-name", name);
 }
 
+// The tutorial shows once per device (doc §8: shown to first-time players, skippable).
+export function hasSeenTutorial(): boolean {
+  return read("tutorial-seen") === "1";
+}
+
+export function markTutorialSeen() {
+  write("tutorial-seen", "1");
+}
+
+// Dev Lab: show the tutorial again on the next Start Building.
+export function resetTutorialSeen() {
+  try {
+    localStorage.removeItem(PREFIX + "tutorial-seen");
+  } catch {
+    // Storage blocked: nothing was remembered anyway.
+  }
+}
+
 export interface SavedRun {
   run: RunSummary;
   // False until the score reached Supabase, so a dropped connection is retried next visit.
