@@ -4,15 +4,18 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Po
 import { BOARD_WIDTH_PX } from "@/lib/game/board";
 import { BuildSession, type BuildSnapshot, type Held } from "@/lib/game/buildSession";
 import { boundsOf, transformOutline, type Vec } from "@/lib/game/geometry";
+import { DISASTER_TYPES } from "@/lib/physics/disasters";
+import type { DisasterType } from "@/lib/supabase/types";
 import { colors } from "@/lib/theme";
 import BoardCanvas from "./BoardCanvas";
 import HeightRuler from "./HeightRuler";
 import PieceSvg from "./PieceSvg";
 import PieceTray from "./PieceTray";
+import StabilityMeter from "./StabilityMeter";
 import styles from "./BuildPhase.module.css";
 
 const formatClock = (seconds: number) =>
-  `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 
 function statusText({ phase, secondsLeft, result }: BuildSnapshot) {
   if (phase === "build") return `Build Time: ${formatClock(secondsLeft)}`;
@@ -20,13 +23,22 @@ function statusText({ phase, secondsLeft, result }: BuildSnapshot) {
   return `Height: ${result.heightM.toFixed(1)} m · ${result.band}`;
 }
 
-// 02 — Build Phase (Figma): drag from the tray, Q/E to rotate, pieces fall under
-// the freeze-on-placement rule (§4.3). When the timer ends the tower settles and
-// its height is measured (§4.6, §5.1). The BuildSession owns the rules and physics.
+// Placeholder until the daily seed picks the disaster (Phase 5). `?disaster=flood` overrides it.
+function initialDisaster(): DisasterType {
+  if (typeof window === "undefined") return "wind";
+  const param = new URLSearchParams(window.location.search).get("disaster");
+  return DISASTER_TYPES.find((d) => d === param) ?? "wind";
+}
+
+// 02 — Build Phase → 03 — Testing Phase (Figma). Drag from the tray, Q/E to rotate,
+// pieces fall under the freeze-on-placement rule (§4.3). When the timer ends the
+// tower settles, its height is measured (§4.6, §5.1), then the day's disaster tests
+// it (§4.10). The BuildSession owns the rules and physics.
 export default function BuildPhase() {
-  const [session] = useState(() => new BuildSession());
+  const [session] = useState(() => new BuildSession({ disaster: initialDisaster() }));
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
-  const { pieces, held, phase, result } = snapshot;
+  const { pieces, held, phase, result, outcome } = snapshot;
+  const testing = phase === "testing" || phase === "done";
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Console / test hook: window.__elevation.debugPieces()
@@ -101,10 +113,28 @@ export default function BuildPhase() {
   return (
     <div className={styles.screen} data-holding={isHolding ? "" : undefined}>
       <header className={styles.topBar}>
-        <p className={styles.timer}>{statusText(snapshot)}</p>
-        <p className={styles.piecesLeft}>
-          Pieces Left: {piecesLeft} / {pieces.length}
-        </p>
+        {phase === "testing" ? (
+          <>
+            <p className={styles.disasterChip}>{snapshot.disasterLabel}</p>
+            <p className={styles.timer}>Surviving: {formatClock(snapshot.testSeconds)}</p>
+          </>
+        ) : phase === "done" && outcome ? (
+          <>
+            <p className={styles.timer}>
+              {outcome.collapsed
+                ? `Collapsed at ${formatClock(outcome.survivedS)}`
+                : `Survived ${formatClock(outcome.survivedS)}!`}
+            </p>
+            <p className={styles.piecesLeft}>{snapshot.disasterName}</p>
+          </>
+        ) : (
+          <>
+            <p className={styles.timer}>{statusText(snapshot)}</p>
+            <p className={styles.piecesLeft}>
+              Pieces Left: {piecesLeft} / {pieces.length}
+            </p>
+          </>
+        )}
       </header>
 
       <div className={styles.buildArea}>
@@ -117,28 +147,55 @@ export default function BuildPhase() {
             onPointerDown={pickUpFromBoard}
             onPointerMove={updateHoverCursor}
           />
-          {phase === "build" ? (
-            <p className={styles.hint}>
-              Drag a piece onto the platform. The newest piece won&apos;t fall
-              <br />
-              until you place the next one. Q / E to rotate.
-            </p>
-          ) : (
-            <p className={styles.hint}>
-              Time&apos;s up. Your tower is settling
-              <br />
-              and its height is the official one.
-            </p>
-          )}
+          {/* Always rendered (empty while testing) so the board never shifts. */}
+          <p className={styles.hint}>
+            {phase === "build" ? (
+              <>
+                Drag a piece onto the platform. The newest piece won&apos;t fall
+                <br />
+                until you place the next one. Q / E to rotate.
+              </>
+            ) : !testing ? (
+              <>
+                Time&apos;s up. Your tower is settling
+                <br />
+                and its height is the official one.
+              </>
+            ) : null}
+          </p>
         </div>
       </div>
 
-      <PieceTray
-        pieces={pieces}
-        outline={(materialId) => session.outline(materialId)}
-        enabled={phase === "build"}
-        onPickUp={pickUpFromTray}
-      />
+      {/* Fixed-height slot so the board doesn't move when the tray swaps for the meter. */}
+      <div className={styles.bottom}>
+      {phase === "done" && outcome && result ? (
+        <dl className={styles.summary}>
+          <div>
+            <dt>Height</dt>
+            <dd>
+              {result.heightM.toFixed(1)} m · {result.band}
+            </dd>
+          </div>
+          <div>
+            <dt>Stability</dt>
+            <dd>{outcome.stability.toFixed(1)} / 5</dd>
+          </div>
+          <div>
+            <dt>Combined score</dt>
+            <dd className={styles.combined}>{outcome.combined}</dd>
+          </div>
+        </dl>
+      ) : testing ? (
+        <StabilityMeter integrity={snapshot.integrity} />
+      ) : (
+        <PieceTray
+          pieces={pieces}
+          outline={(materialId) => session.outline(materialId)}
+          enabled={phase === "build"}
+          onPickUp={pickUpFromTray}
+        />
+      )}
+      </div>
 
       {/* Off the board, the held piece follows the pointer at true scale. On the board, the canvas draws it. */}
       {held && heldMaterialId && !held.pointerBoard && (

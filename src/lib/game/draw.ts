@@ -7,11 +7,18 @@ import type { Vec } from "./geometry";
 
 // placed: settled black piece · newest: the most recent placement (accent, as in Figma)
 // preview: held piece at a valid drop spot · blocked: held piece over an invalid spot
-export type PieceLook = "placed" | "newest" | "preview" | "blocked";
+// meteor: a disaster projectile, not a piece
+export type PieceLook = "placed" | "newest" | "preview" | "blocked" | "meteor";
 
 export interface DrawnPiece {
   outline: Vec[];
   look: PieceLook;
+}
+
+// Board y of the measured-height marker and of the flood's water surface.
+export interface BoardOverlay {
+  heightLineY: number | null;
+  waterLineY: number | null;
 }
 
 function tracePolygon(ctx: CanvasRenderingContext2D, outline: Vec[]) {
@@ -39,7 +46,7 @@ function drawPiece(ctx: CanvasRenderingContext2D, { outline, look }: DrawnPiece)
   }
 
   ctx.globalAlpha = look === "preview" ? 0.85 : 1;
-  ctx.fillStyle = look === "placed" ? colors.ink : colors.accent;
+  ctx.fillStyle = look === "placed" ? colors.ink : look === "meteor" ? colors.textMuted : colors.accent;
   ctx.fill();
   ctx.lineWidth = 1;
   ctx.strokeStyle = colors.inkSoft;
@@ -47,11 +54,11 @@ function drawPiece(ctx: CanvasRenderingContext2D, { outline, look }: DrawnPiece)
   ctx.globalAlpha = 1;
 }
 
-// Expects the context already scaled for devicePixelRatio. heightLineY marks the measured height.
+// Expects the context already scaled for devicePixelRatio.
 export function drawBoard(
   ctx: CanvasRenderingContext2D,
   pieces: DrawnPiece[],
-  heightLineY: number | null = null,
+  { heightLineY, waterLineY }: BoardOverlay,
 ) {
   ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, BOARD_WIDTH_PX, BOARD_HEIGHT_PX);
@@ -63,6 +70,16 @@ export function drawBoard(
   ctx.fill();
 
   pieces.forEach((piece) => drawPiece(ctx, piece));
+
+  // Water over the pieces, so submerged parts read as underwater.
+  if (waterLineY !== null && waterLineY < BOARD_HEIGHT_PX) {
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = colors.accent;
+    ctx.fillRect(0, waterLineY, BOARD_WIDTH_PX, BOARD_HEIGHT_PX - waterLineY);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = colors.accent;
+    ctx.fillRect(0, waterLineY, BOARD_WIDTH_PX, 1.5);
+  }
 
   if (heightLineY !== null) {
     ctx.beginPath();

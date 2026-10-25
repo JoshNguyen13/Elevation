@@ -3,19 +3,26 @@
 // bodies (PhysicsWorld), which own their positions. React subscribes to the
 // snapshot (useSyncExternalStore) and the canvas draws from drawables() each frame.
 // When the build timer ends, everything unfreezes, settles, and the height is measured (§4.6, §5.1).
+// Then the day's disaster tests the tower until it collapses or time runs out (§4.10, §5.2).
 import { getMaterial } from "@/data/materials";
 import {
   BUILD_DURATION_S,
+  COLLAPSE_FALLEN_FRACTION,
   DAILY_PIECE_COUNT,
+  GROUND_TOLERANCE_PX,
+  HEIGHT_REVEAL_S,
   MAX_FRAME_MS,
+  MAX_TEST_DURATION_S,
   PHYSICS_STEP_MS,
   ROTATION_STEP_DEG,
   SETTLE_DURATION_S,
 } from "@/lib/physics/constants";
+import { createDisaster, seededRandom, type Disaster } from "@/lib/physics/disasters";
 import { PhysicsWorld, type Pose } from "@/lib/physics/world";
+import type { DisasterType } from "@/lib/supabase/types";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE, PLATFORM_RECT } from "./board";
 import { MAX_STACK_PX, pieceScale } from "./dailyScale";
-import type { DrawnPiece } from "./draw";
+import type { BoardOverlay, DrawnPiece } from "./draw";
 import {
   boundsOf,
   containsPoint,
@@ -24,13 +31,20 @@ import {
   transformOutline,
   type Vec,
 } from "./geometry";
-import { bandFor, type HeightResult } from "./scoring";
+import {
+  bandFor,
+  combinedScore,
+  stabilityScore,
+  type HeightResult,
+  type TestResult,
+} from "./scoring";
 
 // "lost": fell off the board after the build ended, so it's gone for good.
 export type PieceStatus = "tray" | "held" | "placed" | "lost";
 
-// build → (timer hits 0) → settling → (SETTLE_DURATION_S) → measured
-export type Phase = "build" | "settling" | "measured";
+// build → (timer hits 0) → settling → (SETTLE_DURATION_S) → measured → (HEIGHT_REVEAL_S)
+// → testing → (collapse or MAX_TEST_DURATION_S) → done
+export type Phase = "build" | "settling" | "measured" | "testing" | "done";
 
 export interface Piece {
   uid: string;
@@ -68,6 +82,22 @@ export interface BuildSnapshot {
   secondsLeft: number;
   // The official height, once measured.
   result: HeightResult | null;
+  disaster: DisasterType;
+  disasterName: string;
+  disasterLabel: string;
+  // Whole seconds survived in the Testing Phase.
+  testSeconds: number;
+  // Fraction of the measured tower's pieces not yet fallen (§4.7), 1 before the test.
+  integrity: number;
+  // Stability and combined score, once the test ends.
+  outcome: TestResult | null;
+}
+
+export interface BuildSessionOptions {
+  materialIds?: string[];
+  disaster?: DisasterType;
+  // Seeds the disaster's randomness (wind direction, meteor spots). Phase 5: the daily seed.
+  seed?: number;
 }
 
 const ROTATION_STEP_RAD = (ROTATION_STEP_DEG * Math.PI) / 180;
@@ -104,10 +134,24 @@ export class BuildSession {
   private buildMsLeft = BUILD_DURATION_S * 1000;
   private settleMsLeft = SETTLE_DURATION_S * 1000;
   private result: HeightResult | null = null;
+  private revealMsLeft = HEIGHT_REVEAL_S * 1000;
+  private readonly disaster: Disaster;
+  private testMs = 0;
+  // Collapse tracking (§4.7) for the pieces that made up the measured tower.
+  private towerUids: string[] = [];
+  private readonly peakElevation = new Map<string, number>();
+  private readonly pieceHeight = new Map<string, number>();
+  private readonly fallen = new Set<string>();
+  private outcome: TestResult | null = null;
   private snapshot: BuildSnapshot;
   private readonly listeners = new Set<() => void>();
 
-  constructor(materialIds: string[] = PLACEHOLDER_MATERIAL_IDS) {
+  constructor({
+    materialIds = PLACEHOLDER_MATERIAL_IDS,
+    disaster = "wind",
+    seed = 1,
+  }: BuildSessionOptions = {}) {
+    this.disaster = createDisaster(disaster, seededRandom(seed));
     this.pxPerMeter = pieceScale(materialIds);
     this.pieces = materialIds.map((materialId, i) => ({
       uid: `piece-${i}`,
@@ -135,6 +179,12 @@ export class BuildSession {
       phase: this.phase,
       secondsLeft: Math.ceil(this.buildMsLeft / 1000),
       result: this.result,
+      disaster: this.disaster.type,
+      disasterName: this.disaster.name,
+      disasterLabel: this.disaster.label,
+      testSeconds: Math.floor(this.testMs / 1000),
+      integrity: this.integrity(),
+      outcome: this.outcome,
     };
   }
 
@@ -211,14 +261,24 @@ export class BuildSession {
       outline: this.world.vertices(p.uid),
       look: p.uid === this.frozenUid ? "newest" : "placed",
     }));
+    for (const uid of this.disaster.extraBodyUids()) {
+      drawn.push({ outline: this.world.vertices(uid), look: "meteor" });
+    }
     const preview = this.getPreview();
     if (preview) drawn.push({ outline: preview.outline, look: preview.valid ? "preview" : "blocked" });
     return drawn;
   }
 
-  // Board y of the measured height, for the marker line. null until measured.
-  heightLineY(): number | null {
-    return this.result && PLATFORM_RECT.y - this.result.heightPx;
+  // Board-wide marks: the measured height line and the flood water surface.
+  overlay(): BoardOverlay {
+    return {
+      heightLineY: this.result && PLATFORM_RECT.y - this.result.heightPx,
+      waterLineY: this.phase === "testing" || this.phase === "done" ? this.disaster.waterLineY() : null,
+    };
+  }
+
+  private integrity(): number {
+    return this.towerUids.length === 0 ? 1 : 1 - this.fallen.size / this.towerUids.length;
   }
 
   // Debug view for tests and the console (window.__elevation in dev).
@@ -364,7 +424,55 @@ export class BuildSession {
     const heightPx = Math.max(0, PLATFORM_RECT.y - Math.min(PLATFORM_RECT.y, ...tops));
     const percent = Math.min(100, (heightPx / MAX_STACK_PX) * 100);
     this.result = { heightPx, heightM: heightPx / this.pxPerMeter, percent, band: bandFor(percent) };
+
+    // The measured tower is what the disaster tests (§4.7): pieces resting at or
+    // above the platform top (not ones already sliding off the edge). Remember each
+    // one's size and elevation so a toppled piece can be told apart from a base piece.
+    for (const p of this.placedPieces()) {
+      const b = boundsOf(this.world.vertices(p.uid));
+      if (b.maxY > PLATFORM_RECT.y + GROUND_TOLERANCE_PX) continue;
+      this.towerUids.push(p.uid);
+      this.pieceHeight.set(p.uid, b.maxY - b.minY);
+      this.peakElevation.set(p.uid, PLATFORM_RECT.y - b.maxY);
+    }
     this.phase = "measured";
+    this.emit();
+  }
+
+  // --- Testing Phase (§4.7, §4.10, §5.2) -----------------------------------
+
+  // A piece has fallen once its lowest point is back at the ground after it was
+  // more than one piece-height up, or once it has left the board. Returns whether any fell.
+  private trackCollapse(): boolean {
+    let changed = false;
+    for (const uid of this.towerUids) {
+      if (this.fallen.has(uid)) continue;
+      if (this.piece(uid).status !== "placed") {
+        this.fallen.add(uid);
+        changed = true;
+        continue;
+      }
+      const b = boundsOf(this.world.vertices(uid));
+      const peak = Math.max(this.peakElevation.get(uid)!, PLATFORM_RECT.y - b.maxY);
+      this.peakElevation.set(uid, peak);
+      if (peak > this.pieceHeight.get(uid)! && b.maxY >= PLATFORM_RECT.y - GROUND_TOLERANCE_PX) {
+        this.fallen.add(uid);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  private finishTest(collapsed: boolean) {
+    const survivedS = Math.min(this.testMs / 1000, MAX_TEST_DURATION_S);
+    const stability = stabilityScore(survivedS, MAX_TEST_DURATION_S);
+    this.outcome = {
+      survivedS,
+      collapsed,
+      stability,
+      combined: combinedScore(this.result!.percent, stability),
+    };
+    this.phase = "done";
     this.emit();
   }
 
@@ -372,10 +480,20 @@ export class BuildSession {
 
   // Advance physics and the phase clocks by real elapsed time, in fixed steps.
   // The clocks use the same capped time as physics, so they pause with a hidden tab.
+  // The test clock counts fixed steps, so a disaster plays out identically every run.
   step(elapsedMs: number) {
     const dt = Math.min(elapsedMs, MAX_FRAME_MS);
     this.stepBacklogMs = Math.min(this.stepBacklogMs + dt, MAX_FRAME_MS);
     while (this.stepBacklogMs >= PHYSICS_STEP_MS) {
+      if (this.phase === "testing") {
+        this.disaster.apply({
+          world: this.world,
+          pieceUids: this.placedPieces().map((p) => p.uid),
+          t: this.testMs / 1000,
+          dt: PHYSICS_STEP_MS / 1000,
+        });
+        this.testMs += PHYSICS_STEP_MS;
+      }
       this.world.step(PHYSICS_STEP_MS);
       this.stepBacklogMs -= PHYSICS_STEP_MS;
     }
@@ -390,6 +508,18 @@ export class BuildSession {
     } else if (this.phase === "settling") {
       this.settleMsLeft -= dt;
       if (this.settleMsLeft <= 0) this.measure();
+    } else if (this.phase === "measured") {
+      this.revealMsLeft -= dt;
+      if (this.revealMsLeft > 0) return;
+      // Nothing standing to test: the run ends with zero survival.
+      if (this.towerUids.length === 0) return this.finishTest(true);
+      this.phase = "testing";
+      this.emit();
+    } else if (this.phase === "testing") {
+      const fell = this.trackCollapse();
+      if (this.fallen.size >= COLLAPSE_FALLEN_FRACTION * this.towerUids.length) this.finishTest(true);
+      else if (this.testMs >= MAX_TEST_DURATION_S * 1000) this.finishTest(false);
+      else if (fell || Math.floor(this.testMs / 1000) !== this.snapshot.testSeconds) this.emit();
     }
   }
 

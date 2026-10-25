@@ -41,6 +41,12 @@ export const HEIGHT_HEADROOM = 0.9;
 
 export const BUILD_DURATION_S = 120; // §2.1
 export const SETTLE_DURATION_S = 1.5; // TBD §4.6
+// Pause on the measured height before the disaster starts.
+export const HEIGHT_REVEAL_S = 2;
 export const MAX_TEST_DURATION_S = 75; // TBD §4.11 — suggested 60–90s
+// The tower counts as collapsed once this fraction of its pieces has fallen (§4.7). TBD
+export const COLLAPSE_FALLEN_FRACTION = 0.5;
+// A piece "touches the ground" within this many px of the platform top (§4.7).
+export const GROUND_TOLERANCE_PX = 2;
 export const ROTATION_STEP_DEG = 15; // TBD §2.2
 export const DAILY_PIECE_COUNT = 10; // §3.3

@@ -27,8 +27,8 @@ function createPlatform(): Matter.Body {
   });
 }
 
-// The Matter.js world for the build phase, in pixel space. It knows nothing
-// about game rules (freeze order, the tray) — BuildSession drives it.
+// The Matter.js world, in pixel space. It knows nothing about game rules
+// (freeze order, the tray, disasters) — BuildSession drives it.
 export class PhysicsWorld {
   readonly engine = Matter.Engine.create({
     gravity: { x: 0, y: GRAVITY_Y },
@@ -86,11 +86,35 @@ export class PhysicsWorld {
     return this.body(uid).vertices.map(({ x, y }) => ({ x, y }));
   }
 
+  // A disaster projectile (§4.10 meteor). Not a piece: never scored or picked up.
+  addMeteor(uid: string, x: number, y: number, radius: number, mass: number, velocity: Vec) {
+    const body = Matter.Bodies.circle(x, y, radius, {
+      label: uid,
+      friction: 0.3,
+      restitution: RESTITUTION,
+    });
+    Matter.Body.setMass(body, mass);
+    Matter.Body.setVelocity(body, velocity);
+    Matter.Composite.add(this.engine.world, body);
+    this.bodies.set(uid, body);
+  }
+
+  // Matter accumulates forces until the next step(), then clears them.
+  applyForce(uid: string, force: Vec) {
+    const body = this.body(uid);
+    Matter.Body.applyForce(body, body.position, force);
+  }
+
+  // Gravity as Matter applies it: weight = mass × gravityAccel. Disaster forces are scaled by it.
+  get gravityAccel(): number {
+    return this.engine.gravity.y * this.engine.gravity.scale;
+  }
+
   step(deltaMs: number) {
     Matter.Engine.update(this.engine, deltaMs);
   }
 
-  private body(uid: string): Matter.Body {
+  body(uid: string): Matter.Body {
     const body = this.bodies.get(uid);
     if (!body) throw new Error(`No body for piece ${uid}`);
     return body;

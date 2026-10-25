@@ -13,10 +13,11 @@
 
 **Elevation** is a 2D, browser-based daily puzzle game. Every player gets the same 10 pieces and two minutes to stack them as high and stable as they can, then the tower is hit by that day's natural disaster. Score = height + survival time, shown as a percentile against everyone who played today (Wordle × Tricky Towers × Krillion results).
 
-**Current phase: Phase 3 — Build → Test transition. ✅ Complete.** That finishes the single-computer phases.
-**Next: split into the four tracks (§6).**
-- Track A starts Phase 4 (wind first). It runs from the `"measured"` phase in `BuildSession`, where physics keeps stepping.
-- Track B builds the "03 — Testing Phase" and "04 — Results" screens from the `HeightResult` the session exposes.
+**Current phase: Phase 4 — Disasters. ✅ Complete.** All four disasters (wind, earthquake, flood, meteor) run end to end, with collapse detection, the stability score and the combined score.
+**Next:**
+- **Track A:** tune disaster magnitudes by playtesting. Every number in `src/lib/physics/disasters.ts` is a first pass.
+- **Track C:** Phase 5, the daily seed that picks the materials, the disaster and `seed`.
+- **Track B:** the real "04 — Results" screen, from `outcome` + `result` in the snapshot.
 
 Read "Build-phase rules" in §4 first.
 
@@ -27,7 +28,7 @@ Read "Build-phase rules" in §4 first.
 | **1 — Static placement** ✅ | Drag tray → canvas, rotate Q/E, no gravity. Validates the interaction feel | Single computer |
 | **2 — Core physics** ✅ | Matter.js body per shape, freeze-on-placement rule (§4.3), friction-only materials, pickup/reposition (§4.4) | Single computer |
 | **3 — Build → Test transition** ✅ | 2-min build timer, structure lock, settling window, height measurement + banding (§5.1) | Single computer, **then split into 4 tracks** |
-| 4 — Disasters | One disaster end to end first (wind), escalation + stability score, then the others | Track A |
+| **4 — Disasters** ✅ | One disaster end to end first (wind), escalation + stability score, then the others | Track A |
 | 5 — Daily system + leaderboard | Supabase schema, device ID + display name, date seed → materials + disaster, percentile query | Track C |
 | 6 — Materials library | Offline SerpAPI + Gemini pipeline that grows the real-world-object library | Track D |
 | 7 — Polish & pitch | Tutorial, results screen, juice (sound, shake, particles), pitch deck | Track B + all |
@@ -108,8 +109,8 @@ Center of mass = geometric centroid (Matter.js does this automatically for polyg
 - **Height**: measured once, after the build timer hits 0 and the settling window ends (it doesn't change if the tower later falls). Banded as a % of that day's max possible height: **Grounded** 0–20 · **Mound** 20–40 · **Plateau** 40–60 · **Alps** 60–80 · **Limitless** 80–100.
   - **Max possible height (decided 2026-10-24).** The board is fixed. Each day's pieces are **scaled together**, keeping their real-world proportions. The scale is chosen so all pieces laid end to end by their **longest dimension** reach `HEIGHT_HEADROOM` (90%) of the space above the platform: `MAX_STACK_PX` = 468px = 100%. See `src/lib/game/dailyScale.ts`.
   - The height is shown as **real-world meters + band**, e.g. "5.4 m · Mound". Meters = px ÷ the day's `pxPerMeter`.
-- **Stability**: 0.0–5.0. Starting formula: `5 × min(time_survived / MAX_TEST_DURATION, 1)`.
-- **Combined**: 50/50 height + stability. Default to implement first: normalize both to 0–100 and average (TBD).
+- **Stability** (implemented): 0.0–5.0. Starting formula: `5 × min(time_survived / MAX_TEST_DURATION, 1)` (`stabilityScore()` in `scoring.ts`).
+- **Combined** (implemented): 50/50 height + stability. Height % and stability × 20 are averaged and rounded to 0–100 (`combinedScore()`). TBD.
 
 ---
 
@@ -134,7 +135,10 @@ All constants live in **`src/lib/physics/constants.ts`**. Change them there and 
 | `ROTATION_STEP_DEG` | 15 | TBD (§2.2) |
 | `DAILY_PIECE_COUNT` | 10 | §3.3 |
 | Per-material friction | 0.5 / 0.5 / 0.7 | TBD (§3.1). See table in 3.1 |
-| Disaster force formulas | not implemented yet | Start with `intensity = base + k × seconds_survived` (§4.10) |
+| `HEIGHT_REVEAL_S` | 2 | Pause on the measured height before the disaster starts |
+| `COLLAPSE_FALLEN_FRACTION` | 0.5 | TBD (§4.7). The test ends as "collapsed" once half the measured tower's pieces have fallen |
+| `GROUND_TOLERANCE_PX` | 2 | A piece "touches the ground" within 2px of the platform top |
+| Disaster force formulas | `src/lib/physics/disasters.ts` (`WIND`, `QUAKE`, `FLOOD`, `METEOR`) | TBD (§4.10). Linear ramps. Forces are in multiples of Matter's gravity |
 
 **⚠ Unit convention (deviation from the letter of §4.2; read this before Phase 2).** The doc says Matter.js is tuned for meter units. In practice, Matter.js is tuned for **pixel-scale** bodies: its default slop, sleeping, and velocity thresholds assume bodies roughly 10–100 units across, and meter-sized bodies (1–2 units) jitter and sink. So:
 - **Author** every dimension in meters (materials, constants).
@@ -147,9 +151,13 @@ This keeps the "meters internally, screen-proportionate" intent of §4.2 without
 - ✅ **Friction-only materials (§3.2, §4.9).** Each body gets `material.friction`, restitution 0 and `setMass(material.mass)`. Matter uses the **lower** friction of two touching bodies, and static bodies (platform, frozen piece) are forced to friction 1, so a contact always uses the material's own friction.
 - ✅ **Build forgiveness (§4.5).** A collapse during build doesn't end the run. Only the state at timer = 0 counts. Pieces that fall off the board during the build return to the tray.
 - ✅ **Transition (§4.6).** At timer = 0, unfreeze *everything*, wait `SETTLE_DURATION_S` (no disaster force), then measure the official height.
-- **Collapsed (§4.7, TBD).** Track each piece's peak height. A piece counts as fallen when its lowest point touches the ground after having been more than ~1 piece-height up.
+- ✅ **Collapsed (§4.7, TBD).** Track each piece's peak height. A piece counts as fallen when its lowest point touches the ground after having been more than ~1 piece-height up. Leaving the board also counts. The tower collapses at `COLLAPSE_FALLEN_FRACTION`.
 - **Despawn (§4.8).** A piece outside the "tower zone" for longer than a grace period is removed and not scored.
-- **Disasters (§4.10).** Wind (horizontal force scaled by exposed area/height), earthquake (sinusoidal horizontal motion), flood (rising water, buoyancy + drag), meteor (one big impulse). All escalate with survival time. Build wind first.
+- ✅ **Disasters (§4.10).** All four escalate linearly with survival time:
+  - **Wind:** a gusting horizontal force on each piece, scaled by its exposed height and stronger higher up.
+  - **Earthquake:** the same sinusoidal horizontal acceleration on every piece. The platform is static, so it acts as ground shake.
+  - **Flood:** a rising water line, with buoyancy by area, a sideways current and drag.
+  - **Meteor:** rocks dropped over the tower that hit harder, more often, over time.
 - **Breaking / health (§3.5)** is a stretch goal and out of MVP scope.
 
 ### Controls (§2.2, desktop first)
@@ -196,6 +204,20 @@ Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, 
 - **Height UI.** The top bar shows `Build Time: mm:ss` → `Settling…` → `Height: 5.4 m · Mound`.
   - `HeightRuler` puts each band's tick at its real lower boundary on the board and highlights the achieved band in accent.
   - The canvas draws a dashed accent line at the measured height.
+- **Testing Phase (`BuildSession`, after `"measured"`).**
+  - Phases go `"measured"` → (`HEIGHT_REVEAL_S`) → `"testing"` → `"done"`.
+  - **Tower.** The tower is the pieces resting at or above the platform top when the height is measured; pieces already sliding off the edge are excluded. Collapse tracking only looks at these pieces.
+  - **Forces.** Each fixed physics step calls `disaster.apply()` before `world.step()`. The test clock (`testMs`) counts **fixed steps**, so a disaster plays out identically for the same tower and seed.
+  - **Ending.** When the tower collapses or the clock reaches `MAX_TEST_DURATION_S`, `outcome: TestResult` is set (`survivedS`, `collapsed`, `stability`, `combined`). Forces then stop, but physics keeps running.
+  - **Snapshot:** `disaster`, `disasterName`, `disasterLabel`, `testSeconds`, `integrity` (the fraction of the tower not fallen), `outcome`.
+  - **Choosing the disaster.** Pass `new BuildSession({ disaster, seed })`. Until Phase 5, `BuildPhase` uses `wind`, or `?disaster=wind|earthquake|flood|meteor` from the URL. `seed` drives `seededRandom()` (wind/flood direction, meteor spots).
+  - **Meteors** are extra Matter bodies (`world.addMeteor`), drawn grey. They're never pieces and are removed once off the board or after 6s.
+- **Testing UI** (Figma "03 — Testing Phase").
+  - **Top bar:** a black pill disaster chip, plus `Surviving: mm:ss`.
+  - **Bottom slot:** the tray swaps for the **Stability Meter**, which shows `integrity`.
+  - **At the end:** the top bar shows `Collapsed at mm:ss` / `Survived mm:ss!` with the disaster name, and the bottom shows Height · Stability · Combined score.
+  - **Flood water** is drawn as a translucent accent band.
+  - The top bar, bottom slot and hint have fixed heights, so **the board never moves between phases**.
 - **Rendering.** Custom canvas draw (`src/lib/game/draw.ts`), not `Matter.Render`. The held piece is drawn on the canvas when the pointer is over the board, and as a fixed-position SVG ghost when it's off the board.
 
 ---
@@ -251,7 +273,8 @@ Elevation/
     │   └── page.module.css
     ├── components/
     │   └── game/                        ← each .tsx has a sibling .module.css
-    │       ├── BuildPhase.tsx           ← 02 — Build Phase screen: owns the BuildSession, pointer + Q/E/Esc input, layout
+    │       ├── BuildPhase.tsx           ← 02 Build → 03 Testing screen: owns the BuildSession, pointer + Q/E/Esc input, layout per phase
+    │       ├── StabilityMeter.tsx       ← 03 — Testing Phase meter (share of the tower still standing)
     │       ├── BoardCanvas.tsx          ← the 400×560 board canvas (HiDPI) + the game loop (step physics, draw)
     │       ├── PieceTray.tsx            ← 10 tray slots (Available / Placed)
     │       ├── PieceSvg.tsx             ← a piece outline as SVG (tray icons, off-board drag ghost)
@@ -264,13 +287,14 @@ Elevation/
         ├── game/
         │   ├── geometry.ts              ← shapeOutline() (piece vertices, px), transforms, hit test, SAT overlap
         │   ├── board.ts                 ← board size + PLATFORM_RECT / PLATFORM_OUTLINE in px
-        │   ├── buildSession.ts          ← BuildSession: build rules (freeze, pickup, drop, rotate), timer, settle, height measurement
+        │   ├── buildSession.ts          ← BuildSession: build rules, timer, settle, height, testing phase, collapse tracking, scores
         │   ├── dailyScale.ts            ← per-day piece scale + MAX_STACK_PX (100% height)
-        │   ├── scoring.ts               ← HEIGHT_BANDS, bandFor(), HeightResult
-        │   └── draw.ts                  ← custom canvas renderer (platform + pieces + height line)
+        │   ├── scoring.ts               ← HEIGHT_BANDS, bandFor(), HeightResult, TestResult, stabilityScore(), combinedScore()
+        │   └── draw.ts                  ← custom canvas renderer (platform, pieces, meteors, water, height line)
         ├── physics/
-        │   ├── constants.ts             ← PX_PER_METER, platform, gravity, step + solver settings, timings, toPx/toMeters
-        │   └── world.ts                 ← PhysicsWorld: Matter engine + platform + piece bodies (no game rules)
+        │   ├── constants.ts             ← PX_PER_METER, platform, gravity, step + solver settings, timings, collapse rule
+        │   ├── disasters.ts             ← wind / earthquake / flood / meteor force models, seededRandom()
+        │   └── world.ts                 ← PhysicsWorld: Matter engine + platform + piece and meteor bodies (no game rules)
         └── supabase/
             └── types.ts                 ← row types for players / scores / daily_puzzle
 ```
@@ -301,7 +325,10 @@ npm run lint
 npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first so Next generates its route types (e.g. LayoutProps)
 ```
 
-**What you should see (Phase 3):** the Figma "02 — Build Phase" screen at 1440×900.
+**What you should see (Phase 4):** the Figma "02 — Build Phase" screen at 1440×900.
+- After the height is shown (2s), the screen becomes "03 — Testing Phase": a disaster chip, `Surviving: mm:ss`, and the Stability meter where the tray was.
+- The disaster runs until half the tower has fallen or 75s pass. Then the score line appears: Height · Stability / 5 · Combined.
+- The disaster defaults to wind. Try the others with `http://localhost:3000/?disaster=earthquake` (or `flood`, `meteor`).
 - **Top bar:** a live "Build Time" countdown and a live "Pieces Left: N / 10".
 - **Board:** the Height Ruler (band ticks at their real heights), the 400×560 board with the grey platform, and the 10-piece tray.
 - **When the timer hits 0** (or you run `window.__elevation.endBuild()` in the dev console):
@@ -380,6 +407,12 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [ ] The build timer pauses while the tab is hidden, since it shares the physics clock. Decide whether a daily competitive run needs wall-clock time instead.
   - [ ] Should there be a "Done building" button to end early? `endBuild()` already supports it. It's not in Figma.
   - [ ] Height counts every placed piece still on the board, including one dangling off the platform edge. Revisit along with §4.7 / §4.8.
+- **Raised during Phase 4**
+  - [ ] **Disaster strength.** A bare 4-square column (7.2 m, Mound) collapses in about 4s (meteor), 10s (wind, earthquake) and 17s (flood). That's harsh on a naive tower; playtest with real builds before tuning. A flat pile with nothing elevated survives the full 75s (stability 5.0), which may be too generous.
+  - [ ] The Stability meter shows the **share of the tower still standing**, as in Figma ("Stability: 68%" mid-test). The **stability score** is survival time (§5.2). Same word, two meanings: consider renaming one.
+  - [ ] Collapse threshold: half the tower's pieces fallen (`COLLAPSE_FALLEN_FRACTION`). Alternatives: current height below X% of the measured height.
+  - [ ] Forces stop when the test ends, but physics keeps running. Decide whether the disaster should keep going for drama on the results view.
+  - [ ] Pieces that fall during the 2s height reveal count against the tower. That's intentional, but check that it feels fair.
 
 ---
 
@@ -393,6 +426,25 @@ Newest first. One entry per work session: **date · who · phase · what changed
 - Decisions:
 - Next / blockers:
 -->
+
+### 2026-10-24 · Joshua (+ Claude Code) · Phase 4
+- **Changed**
+  - New `src/lib/physics/disasters.ts`: wind, earthquake, flood and meteor force models, plus a seeded PRNG.
+  - `BuildSession` gained the reveal → testing → done phases, collapse tracking (§4.7), `outcome` (stability + combined) and options `{ materialIds, disaster, seed }`.
+  - `PhysicsWorld` gained a public `body()`, plus `applyForce`, `addMeteor` and `gravityAccel`.
+  - New `StabilityMeter`. The disaster chip, survival clock, end-of-run score line and water/meteor drawing are in.
+  - Fixed-height top bar, hint and bottom slot, so the board no longer jumps between phases.
+  - Also this session: when the drop puts the 10th piece on the board, it's placed dynamic, not frozen.
+- **Decisions**
+  - The Stability meter shows tower integrity (Figma). The stability score is survival time (§5.2).
+  - Collapse means half the measured tower has fallen.
+  - The disaster comes from the URL until Phase 5.
+- **Verified** (headless Chrome over CDP, 4 disasters in parallel, no console errors)
+  - Messy 7-piece pile: wind collapsed at 23s, flood at 18s, meteor at 20s; the earthquake run survived the full 75s (stability 5.0, combined 58).
+  - Clean 4-square column (7.2 m, Mound): meteor collapsed at 4s, wind and earthquake at 10s, flood at 17s. Integrity stayed at 1.0 until the collapse.
+  - The board moves at most 0.5px across phases, and the page is exactly 900px tall.
+  - tsc, lint and build pass.
+- **Next / blockers:** playtest and tune the disaster magnitudes (Track A). Phase 5 daily seed (Track C). Results screen (Track B).
 
 ### 2026-10-24 · Joshua (+ Claude Code) · Phase 3
 - **Changed**
