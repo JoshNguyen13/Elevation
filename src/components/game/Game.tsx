@@ -47,7 +47,7 @@ interface Loaded {
   playedYesterday: number | null;
 }
 
-// Dev-only switches: ?replay=1 runs unsubmitted practice rounds, ?disaster=flood forces the
+// Dev-only switches: ?replay=1 runs unsubmitted practice rounds, ?disaster=tornado forces the
 // disaster, ?date=2026-11-03 previews that day's puzzle (practice only, generated locally, so
 // nothing is read from or written to the shared database for that date).
 function devOverrides() {

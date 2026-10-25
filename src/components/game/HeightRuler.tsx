@@ -1,6 +1,7 @@
 import { PLATFORM_RECT } from "@/lib/game/board";
 import { MAX_STACK_PX } from "@/lib/game/dailyScale";
 import { HEIGHT_BANDS, type HeightBand } from "@/lib/game/scoring";
+import DoomText from "./DoomText";
 import styles from "./HeightRuler.module.css";
 
 interface HeightRulerProps {
@@ -25,7 +26,9 @@ export default function HeightRuler({ activeBand, live }: HeightRulerProps) {
           style={{ top: yFor(minPercent) }}
         >
           <span className={styles.tick} />
-          <span className={styles.label}>{name}</span>
+          <span className={styles.label}>
+            <DoomText text={name} />
+          </span>
         </div>
       ))}
       {live && (

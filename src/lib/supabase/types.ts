@@ -1,7 +1,8 @@
 // Row types for the Supabase schema (planning doc §7). The client is
 // src/lib/supabase/client.ts and the SQL is supabase/migrations/0001_init.sql.
 
-export type DisasterType = "wind" | "earthquake" | "flood" | "meteor";
+// Also the daily_puzzle check constraint (supabase/migrations/0002_disaster_types.sql).
+export type DisasterType = "wind" | "earthquake" | "fat-guy" | "meteor" | "tornado" | "cat";
 
 export type HeightBand = "Grounded" | "Mound" | "Plateau" | "Alps" | "Limitless";
 

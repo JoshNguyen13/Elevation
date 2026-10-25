@@ -11,6 +11,8 @@ import { runFromSnapshot, type RunSummary } from "@/lib/daily/run";
 import { colors } from "@/lib/theme";
 import Button from "@/components/ui/Button";
 import BoardCanvas from "./BoardCanvas";
+import DisasterBackdrop from "./DisasterBackdrop";
+import DoomText from "./DoomText";
 import HeightRuler from "./HeightRuler";
 import PieceSvg from "./PieceSvg";
 import PieceTray from "./PieceTray";
@@ -178,10 +180,14 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
 
   return (
     <div className={styles.screen} data-holding={isHolding ? "" : undefined}>
+      {/* The day's disaster approaching: scenery, things in flight, letters reacting. View only. */}
+      <DisasterBackdrop session={session} boardRef={canvasRef} />
       <header className={styles.topBar}>
         {phase === "testing" ? (
           <>
-            <p className={styles.disasterChip}>{snapshot.disasterLabel}</p>
+            <p className={styles.disasterChip}>
+              <DoomText text={snapshot.disasterLabel} />
+            </p>
             <div className={styles.topRight}>
               <div className={styles.speedControl} role="group" aria-label="Disaster speed">
                 {SIM_SPEEDS.map((speed) => (
@@ -196,24 +202,34 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
                   </button>
                 ))}
               </div>
-              <p className={styles.timer}>Surviving: {formatClock(snapshot.testSeconds)}</p>
+              <p className={styles.timer}>
+                <DoomText text={`Surviving: ${formatClock(snapshot.testSeconds)}`} />
+              </p>
             </div>
           </>
         ) : phase === "done" && outcome ? (
           <>
             <p className={styles.timer}>
-              {outcome.collapsed
-                ? `Collapsed at ${formatClock(outcome.survivedS)}`
-                : `Survived ${formatClock(outcome.survivedS)}!`}
+              <DoomText
+                text={
+                  outcome.collapsed
+                    ? `Collapsed at ${formatClock(outcome.survivedS)}`
+                    : `Survived ${formatClock(outcome.survivedS)}!`
+                }
+              />
             </p>
-            <p className={styles.piecesLeft}>{snapshot.disasterName}</p>
+            <p className={styles.piecesLeft}>
+              <DoomText text={snapshot.disasterName} />
+            </p>
           </>
         ) : (
           <>
-            <p className={styles.timer}>{statusText(snapshot)}</p>
+            <p className={styles.timer}>
+              <DoomText text={statusText(snapshot)} />
+            </p>
             <div className={styles.topRight}>
               <p className={styles.piecesLeft}>
-                Pieces Left: {piecesLeft} / {pieces.length}
+                <DoomText text={`Pieces Left: ${piecesLeft} / ${pieces.length}`} />
               </p>
               {phase === "build" && (
                 <button
@@ -222,7 +238,7 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
                   disabled={!pieces.some((p) => p.status === "placed")}
                   onClick={() => session.endBuild()}
                 >
-                  Start Early
+                  <DoomText text="Start Early" />
                 </button>
               )}
             </div>
@@ -270,15 +286,15 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
           <p className={styles.hint}>
             {phase === "build" ? (
               <>
-                Drag a piece onto the platform. The newest piece won&apos;t fall
+                <DoomText text="Drag a piece onto the platform. The newest piece won't fall" />
                 <br />
-                until you place the next one. Q / E to rotate.
+                <DoomText text="until you place the next one. Q / E to rotate." />
               </>
             ) : !testing ? (
               <>
-                Time&apos;s up. Your tower is settling
+                <DoomText text="Time's up. Your tower is settling" />
                 <br />
-                and its height is the official one.
+                <DoomText text="and its height is the official one." />
               </>
             ) : null}
           </p>

@@ -5,6 +5,7 @@ import { getMaterial } from "@/data/materials";
 import type { Piece } from "@/lib/game/buildSession";
 import { glyph } from "@/lib/game/icon";
 import { colors } from "@/lib/theme";
+import DoomText from "./DoomText";
 import PieceSvg from "./PieceSvg";
 import styles from "./PieceTray.module.css";
 
@@ -18,7 +19,9 @@ interface PieceTrayProps {
 export default function PieceTray({ pieces, enabled, onPickUp }: PieceTrayProps) {
   return (
     <section className={styles.tray} aria-label="Piece tray">
-      <p className={styles.label}>PIECE TRAY</p>
+      <p className={styles.label}>
+        <DoomText text="PIECE TRAY" />
+      </p>
       <div className={styles.slots}>
         {pieces.map((piece) => {
           const available = enabled && piece.status === "tray";

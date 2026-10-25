@@ -17,7 +17,13 @@ import {
   ROTATION_STEP_DEG,
   SETTLE_DURATION_S,
 } from "@/lib/physics/constants";
-import { createDisaster, seededRandom, type Disaster, type DisasterCue } from "@/lib/physics/disasters";
+import {
+  createDisaster,
+  seededRandom,
+  type Disaster,
+  type DisasterBuildUp,
+  type DisasterCue,
+} from "@/lib/physics/disasters";
 import { PhysicsWorld, type Pose } from "@/lib/physics/world";
 import type { DisasterType } from "@/lib/supabase/types";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE, PLATFORM_RECT } from "./board";
@@ -164,6 +170,7 @@ export class BuildSession {
   private speed: SimSpeed = 1;
   private phase: Phase = "build";
   private buildMsLeft = BUILD_DURATION_S * 1000;
+  private readonly buildMsTotal: number;
   private settleMsLeft = SETTLE_DURATION_S * 1000;
   private result: HeightResult | null = null;
   private juiceQueue: JuiceEvent[] = [];
@@ -186,6 +193,7 @@ export class BuildSession {
     buildSeconds = BUILD_DURATION_S,
   }: BuildSessionOptions = {}) {
     this.buildMsLeft = buildSeconds * 1000;
+    this.buildMsTotal = this.buildMsLeft;
     this.disaster = createDisaster(disaster, seededRandom(seed));
     this.pxPerMeter = pieceScale(materialIds);
     this.pieces = materialIds.map((materialId, i) => ({
@@ -574,7 +582,38 @@ export class BuildSession {
     return changed;
   }
 
+  // How close the day's disaster is, for the page's build-up (view only: never read back).
+  // The build-up runs over the build timer, then the settle + height reveal is the last approach.
+  buildUp(): DisasterBuildUp {
+    // Clamped: the first frame can step by a hair of negative time.
+    const build = this.buildMsTotal > 0 ? Math.min(1, Math.max(0, 1 - this.buildMsLeft / this.buildMsTotal)) : 1;
+    const finalMs = (SETTLE_DURATION_S + HEIGHT_REVEAL_S) * 1000;
+    const finalDone =
+      this.phase === "settling"
+        ? SETTLE_DURATION_S * 1000 - this.settleMsLeft
+        : this.phase === "measured"
+          ? finalMs - Math.max(0, this.revealMsLeft)
+          : this.phase === "build"
+            ? 0
+            : finalMs;
+    let tower: DisasterBuildUp["tower"] = null;
+    const placed = this.placedPieces().filter((p) => p.uid !== this.frozenUid);
+    if (placed.length > 0) {
+      const b = boundsOf(placed.flatMap((p) => this.world.vertices(p.uid)));
+      tower = { cx: (b.minX + b.maxX) / 2, minX: b.minX, maxX: b.maxX, top: Math.min(b.minY, PLATFORM_RECT.y) };
+    }
+    return {
+      disaster: this.disaster,
+      stage: this.phase === "build" ? "build" : this.phase === "testing" ? "testing" : this.phase === "done" ? "done" : "final",
+      build,
+      final: Math.min(1, Math.max(0, finalDone / finalMs)),
+      testS: this.testMs / 1000,
+      tower,
+    };
+  }
+
   private finishTest(collapsed: boolean) {
+    this.disaster.end(this.world);
     const survivedS = Math.min(this.testMs / 1000, MAX_TEST_DURATION_S);
     const stability = stabilityScore(survivedS, MAX_TEST_DURATION_S);
     this.outcome = {

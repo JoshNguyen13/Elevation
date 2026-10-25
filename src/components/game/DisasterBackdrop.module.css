@@ -1,0 +1,18 @@
+/* Both layers cover the viewport and never take input. The screen is their stacking
+   context (BuildPhase .screen): the back layer sits under its content, the front over it. */
+.back,
+.front {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+.back {
+  z-index: -1;
+}
+
+.front {
+  z-index: 20;
+}
