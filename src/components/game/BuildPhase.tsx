@@ -352,6 +352,15 @@ export default function BuildPhase({ puzzle, onComplete, onContinue, buildSecond
                   <DoomText text="Start Early" />
                 </button>
               )}
+              {/* What the tower will face once the build ends (name only: no wind direction). */}
+              <p className={styles.nextDisaster} title="Your tower faces this when the build ends">
+                <span className={styles.nextDisasterLabel}>
+                  <DoomText text="Disaster" />
+                </span>
+                <span>
+                  <DoomText text={snapshot.disasterName} />
+                </span>
+              </p>
             </div>
           </>
         )}

@@ -108,6 +108,27 @@
   font-weight: 500;
 }
 
+/* Build phase: the upcoming disaster, outlined so it reads apart from the solid chip
+   that replaces it once the test starts. 36px tall, like the top bar. */
+.nextDisaster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.nextDisasterLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
 .doneRow {
   display: flex;
   align-items: center;
