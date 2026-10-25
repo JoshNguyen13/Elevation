@@ -1,4 +1,3 @@
 # Elevation
 
-; 
-jason test
+jason was here. he totally worked on this. not carried by josh. 
