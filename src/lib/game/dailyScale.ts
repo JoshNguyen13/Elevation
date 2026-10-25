@@ -2,7 +2,13 @@
 // whole, keeping real-world proportions, so all its pieces laid end to end (by
 // longest dimension) reach exactly MAX_STACK_PX above the platform.
 import { getMaterial } from "@/data/materials";
-import { HEIGHT_HEADROOM } from "@/lib/physics/constants";
+import {
+  GRAVITY_G,
+  HEIGHT_HEADROOM,
+  MAX_GRAVITY_PX_S2,
+  MIN_GRAVITY_PX_S2,
+  STANDARD_GRAVITY,
+} from "@/lib/physics/constants";
 import { PLATFORM_RECT } from "./board";
 import { longestDimension, shapeOutline } from "./geometry";
 
@@ -16,4 +22,10 @@ export function pieceScale(materialIds: readonly string[]): number {
     0,
   );
   return MAX_STACK_PX / totalM;
+}
+
+// Board px/s² of gravity for this scale: GRAVITY_G in real-world terms, clamped on extreme days.
+export function dayGravity(pxPerMeter: number): number {
+  const pxPerS2 = GRAVITY_G * STANDARD_GRAVITY * pxPerMeter;
+  return Math.min(Math.max(pxPerS2, MIN_GRAVITY_PX_S2), MAX_GRAVITY_PX_S2);
 }

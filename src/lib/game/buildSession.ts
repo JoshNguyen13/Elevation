@@ -21,7 +21,7 @@ import { createDisaster, seededRandom, type Disaster, type DisasterCue } from "@
 import { PhysicsWorld, type Pose } from "@/lib/physics/world";
 import type { DisasterType } from "@/lib/supabase/types";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE, PLATFORM_RECT } from "./board";
-import { MAX_STACK_PX, pieceScale } from "./dailyScale";
+import { dayGravity, MAX_STACK_PX, pieceScale } from "./dailyScale";
 import type { BoardOverlay, DrawnIcon, DrawnPiece } from "./draw";
 import {
   boundsOf,
@@ -119,6 +119,8 @@ export type JuiceEvent =
 
 // Impacts slower than this (px per step) are silent resting contacts.
 const MIN_IMPACT_SPEED = 1.2;
+// The gravity (px/s²) the impact thresholds were tuned at; speeds are normalized to it.
+const IMPACT_TUNED_GRAVITY_PX_S2 = 1000;
 const MAX_QUEUED_JUICE = 200;
 
 export interface BuildSessionOptions {
@@ -151,9 +153,11 @@ function isOffBoard(outline: Vec[]): boolean {
 }
 
 export class BuildSession {
-  private readonly world = new PhysicsWorld();
+  private readonly world: PhysicsWorld;
   // Board px per real-world meter for today's set (§5.1).
   readonly pxPerMeter: number;
+  // Fall speed scales with √gravity, so impacts sound the same on every day's gravity.
+  private readonly impactSpeedScale: number;
   private readonly outlines = new Map<string, Vec[]>();
   private readonly iconFrames = new Map<string, { path: string; cx: number; cy: number } | null>();
   private pieces: Piece[];
@@ -188,6 +192,9 @@ export class BuildSession {
     this.buildMsLeft = buildSeconds * 1000;
     this.disaster = createDisaster(disaster, seededRandom(seed));
     this.pxPerMeter = pieceScale(materialIds);
+    const gravity = dayGravity(this.pxPerMeter);
+    this.world = new PhysicsWorld(gravity);
+    this.impactSpeedScale = Math.sqrt(gravity / IMPACT_TUNED_GRAVITY_PX_S2);
     this.pieces = materialIds.map((materialId, i) => ({
       uid: `piece-${i}`,
       materialId,
@@ -256,12 +263,13 @@ export class BuildSession {
 
   private collectImpacts() {
     for (const impact of this.world.drainImpacts()) {
-      if (impact.speed < MIN_IMPACT_SPEED) continue;
+      const speed = impact.speed / this.impactSpeedScale;
+      if (speed < MIN_IMPACT_SPEED) continue;
       this.juice({
         kind: "impact",
         x: impact.x,
         y: impact.y,
-        strength: Math.min(1, (impact.speed - MIN_IMPACT_SPEED) / 10),
+        strength: Math.min(1, (speed - MIN_IMPACT_SPEED) / 10),
         meteor: impact.labels.some((label) => label.startsWith("meteor-")),
       });
     }
