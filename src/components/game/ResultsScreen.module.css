@@ -71,6 +71,33 @@
   padding: 28px;
 }
 
+/* "Did you know?": as wide as the score cards above, never wider. */
+.factCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 0;
+  min-width: 100%;
+  padding: 16px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-score-card);
+}
+
+.factText {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.factSource {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.factSource:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 .combined {
   font-size: 40px;
   font-weight: 700;

@@ -20,6 +20,8 @@ export const PATHS = {
   serp: join(cache, "serpapi"),
   gemini: join(cache, "gemini"),
   icons: join(cache, "icons"),
+  // Facts stage: <slug>.search.json (SerpAPI text results) + <slug>.json (Gemini's extraction).
+  facts: join(cache, "facts"),
   // Thumbnail bytes: git-ignored (web images are not ours to commit).
   images: join(cache, "images"),
   ledger: join(cache, "ledger.jsonl"),

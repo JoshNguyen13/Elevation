@@ -43,14 +43,17 @@ export const BUILD_DURATION_S = 120; // §2.1
 export const SETTLE_DURATION_S = 1.5; // TBD §4.6
 // Pause on the measured height before the disaster starts.
 export const HEIGHT_REVEAL_S = 2;
-export const MAX_TEST_DURATION_S = 75; // TBD §4.11 — suggested 60–90s
-// The tower counts as collapsed once this fraction of its pieces has fallen (§4.7). TBD
-export const COLLAPSE_FALLEN_FRACTION = 0.5;
-// A piece "touches the ground" within this many px of the platform top (§4.7).
-export const GROUND_TOLERANCE_PX = 2;
 export const ROTATION_STEP_DEG = 1; // TBD §2.2 — fine steps; holding Q/E repeats
 
 // Matter uses the higher frictionStatic of two touching bodies, so this sets how
 // hard resting pieces are to nudge off each other, whatever their kinetic friction.
 export const FRICTION_STATIC = 2;
 export const DAILY_PIECE_COUNT = 10; // §3.3
+
+// --- Testing Phase (disasters track) -------------------------------------------
+// Disaster force magnitudes live in disasters.ts; these are the test's rules.
+export const MAX_TEST_DURATION_S = 75; // TBD §4.11 — suggested 60–90s
+// The tower counts as collapsed once this fraction of its pieces has fallen (§4.7). TBD
+export const COLLAPSE_FALLEN_FRACTION = 0.5;
+// A piece "touches the ground" within this many px of the platform top (§4.7).
+export const GROUND_TOLERANCE_PX = 2;

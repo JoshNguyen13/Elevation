@@ -174,6 +174,7 @@ export default function Game({ dev }: { dev?: DevRun }) {
     return (
       <ResultsScreen
         run={run}
+        itemIds={loaded.puzzle.itemIds}
         deviceId={loaded.deviceId}
         displayName={loaded.displayName}
         online={isOnlineMode()}

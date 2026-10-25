@@ -1,13 +1,12 @@
 {
   "name": "microwave oven",
   "model": "gemini-3.8-flash",
-  "promptVersion": 2,
-  "status": "invalid",
-  "reason": "unparseable answer (MAX_TOKENS)",
+  "promptVersion": 3,
+  "status": "ok",
   "usedImage": true,
   "usage": {
-    "inputTokens": 1290,
-    "outputTokens": 3986
+    "inputTokens": 1330,
+    "outputTokens": 1560
   },
-  "path": null
+  "path": "M16 100L26 100L26 95L74 95L74 100L84 100L84 95L88 95L88 78L93 75L93 45L88 42L88 28Q88 25 85 25L15 25Q12 25 12 28L12 60L8 63L8 72L12 75L12 95L16 95Z"
 }

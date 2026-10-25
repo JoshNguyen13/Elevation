@@ -1,12 +1,12 @@
 {
   "name": "car tire",
   "model": "gemini-3.8-flash",
-  "promptVersion": 2,
+  "promptVersion": 3,
   "status": "ok",
   "usedImage": true,
   "usage": {
-    "inputTokens": 1274,
-    "outputTokens": 3954
+    "inputTokens": 1314,
+    "outputTokens": 5729
   },
-  "path": "M15 100C12 100 10 98 10 95C10 70 25 45 45 25C65 5 85 0 92 0C95 0 98 2 98 5C98 30 80 55 60 75C40 95 20 100 15 100Z"
+  "path": "M 50 0 C 78 0 100 22 100 50 C 100 78 78 100 50 100 C 22 100 0 78 0 50 C 0 22 22 0 50 0 L 50 24 C 36 24 24 36 24 50 C 24 64 36 76 50 76 C 64 76 76 64 76 50 C 76 36 64 24 50 24 Z"
 }

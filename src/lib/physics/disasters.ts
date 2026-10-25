@@ -17,6 +17,11 @@ export const DISASTER_NAMES: Record<DisasterType, string> = {
   meteor: "Meteor Shower",
 };
 
+// Moments a disaster wants heard or seen. Raise one with step.cue(); the view layer maps
+// each to sound (src/lib/juice/sounds.ts) and visuals (src/lib/juice/effects.ts), and
+// ignores cues it doesn't know yet. Physics never reads them. Add names here as needed.
+export type DisasterCue = "gust" | "tremor" | "wave" | "meteor-incoming";
+
 export interface DisasterStep {
   world: PhysicsWorld;
   // Uids of the pieces still in the world.
@@ -24,6 +29,8 @@ export interface DisasterStep {
   // Seconds since the test started, and the step length in seconds.
   t: number;
   dt: number;
+  // Raise a cue at a board point; strength 0–1 (default 1).
+  cue(cue: DisasterCue, detail?: { x?: number; y?: number; strength?: number }): void;
 }
 
 export interface Disaster {
@@ -178,7 +185,7 @@ function createMeteor(rng: () => number): Disaster {
     type: "meteor",
     name: DISASTER_NAMES.meteor,
     label: "⚠ Meteor Shower — Intensifying",
-    apply({ world, pieceUids, t }) {
+    apply({ world, pieceUids, t, cue }) {
       for (let i = live.length - 1; i >= 0; i--) {
         const { uid, bornAt } = live[i];
         const { bounds } = world.body(uid);
@@ -200,9 +207,11 @@ function createMeteor(rng: () => number): Disaster {
       }
       const radius = METEOR.baseRadiusPx + METEOR.radiusPerS * t;
       const uid = `meteor-${count++}`;
+      const x = minX + rng() * (maxX - minX);
+      cue("meteor-incoming", { x, y: 0, strength: Math.min(1, radius / 20) });
       world.addMeteor(
         uid,
-        minX + rng() * (maxX - minX),
+        x,
         -radius,
         radius,
         METEOR.baseMass + METEOR.massPerS * t,

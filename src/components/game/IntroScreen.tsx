@@ -1,5 +1,6 @@
 ﻿import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import { getMaterial } from "@/data/materials";
 import { dayNumber } from "@/lib/daily/date";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
 import { glyph } from "@/lib/game/icon";
@@ -45,11 +46,14 @@ export default function IntroScreen({
         </p>
         <p className={styles.label}>TODAY&apos;S MATERIALS</p>
         <div className={styles.materials}>
-          {puzzle.itemIds.map((id, i) => (
-            <div key={i} className={styles.slot}>
-              <PieceSvg {...glyph(id)} fill={colors.ink} />
-            </div>
-          ))}
+          {puzzle.itemIds.map((id, i) => {
+            const { name, fact } = getMaterial(id);
+            return (
+              <div key={i} className={styles.slot} title={fact ? `${name}: ${fact.text}` : name}>
+                <PieceSvg {...glyph(id)} fill={colors.ink} />
+              </div>
+            );
+          })}
         </div>
         <div className={styles.actions}>
           <Button onClick={onStart}>{alreadyPlayed ? "See Today's Results →" : "Start Building →"}</Button>

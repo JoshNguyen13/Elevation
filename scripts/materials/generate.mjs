@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Offline materials pipeline (§3.4). Grows src/data/items.generated.json with
 // real-world objects. Per NEW item: one SerpAPI image search, one Gemini estimate
-// (size, density, ...) and one Gemini icon (a silhouette whose convex hull is the hitbox).
+// (size, density, ...), one Gemini icon (a silhouette whose convex hull is the hitbox),
+// and the facts stage: one SerpAPI web search + one Gemini read of it (real size, a fun fact).
 //
 //   npm run materials:plan                         what would a run do and cost? (no network, no keys)
 //   npm run materials:run -- --limit 1             really call the APIs for at most 1 item
@@ -15,7 +16,8 @@
 // answer is cached on disk), a run needs an explicit --limit, and any API error stops it.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { toMaterial, validateEstimate, validateIcon, validateLibrary } from "./convert.mjs";
+import { groundEstimate, toMaterial, validateEstimate, validateFacts, validateIcon, validateLibrary } from "./convert.mjs";
+import { FACTS_PROMPT_VERSION, buildFactsRequest, extractFacts, linksOf, searchFacts } from "./facts.mjs";
 import { buildRequest, describeRequest, estimateObject } from "./gemini.mjs";
 import { ICON_MIN_PROMPT_VERSION, ICON_PROMPT_VERSION, buildIconRequest, drawIcon } from "./icon.mjs";
 import {
@@ -76,6 +78,8 @@ const cachePath = {
   serp: (slug) => join(PATHS.serp, `${slug}.json`),
   gemini: (slug) => join(PATHS.gemini, `${slug}.json`),
   icon: (slug) => join(PATHS.icons, `${slug}.json`),
+  factSearch: (slug) => join(PATHS.facts, `${slug}.search.json`),
+  facts: (slug) => join(PATHS.facts, `${slug}.json`),
   image: (slug) => join(PATHS.images, `${slug}.img`),
 };
 
@@ -91,6 +95,11 @@ function iconCache(slug) {
   return entry && entry.promptVersion >= ICON_MIN_PROMPT_VERSION && entry.model === iconModel ? entry : null;
 }
 
+function factsCache(slug) {
+  const entry = readJson(cachePath.facts(slug), null);
+  return entry && entry.promptVersion === FACTS_PROMPT_VERSION && entry.model === model ? entry : null;
+}
+
 function cachedImage(slug) {
   const serp = readJson(cachePath.serp(slug), null);
   return serp?.imageMime && existsSync(cachePath.image(slug))
@@ -104,7 +113,13 @@ function itemFromCache(name) {
   const est = estimateCache(slug);
   if (est?.status !== "ok") return null;
   const icon = iconCache(slug);
-  return toMaterial(name, est.estimate, icon?.status === "ok" ? icon.path : undefined);
+  const facts = factsCache(slug);
+  return toMaterial(
+    name,
+    est.estimate,
+    icon?.status === "ok" ? icon.path : undefined,
+    facts?.status === "ok" ? facts.facts : undefined,
+  );
 }
 
 // What a name still needs. Paid calls are only ever for answers that aren't cached.
@@ -116,7 +131,10 @@ function needsOf(name, args) {
   const estimate = est?.status !== "ok";
   const drawing = !icon || (icon.status === "invalid" && args.retryInvalid) || Boolean(args.redraw);
   const search = (estimate || drawing) && !existsSync(cachePath.serp(slug));
-  return { estimate, drawing, search, paid: estimate || drawing };
+  const fx = factsCache(slug);
+  const facts = !fx || (fx.status === "invalid" && args.retryInvalid);
+  const factSearch = facts && !existsSync(cachePath.factSearch(slug));
+  return { estimate, drawing, search, facts, factSearch, paid: estimate || drawing || facts };
 }
 
 // --existing: only items already in the library (e.g. to add icons without
@@ -172,6 +190,7 @@ function plan(args) {
   let serp = 0;
   let estimates = 0;
   let icons = 0;
+  let facts = 0;
   for (const name of names) {
     const need = needsOf(name, args);
     if (need.skip) {
@@ -179,9 +198,10 @@ function plan(args) {
       continue;
     }
     if (need.paid) {
-      serp += need.search ? 1 : 0;
+      serp += (need.search ? 1 : 0) + (need.factSearch ? 1 : 0);
       estimates += need.estimate ? 1 : 0;
       icons += need.drawing ? 1 : 0;
+      facts += need.facts ? 1 : 0;
       continue;
     }
     const item = itemFromCache(name);
@@ -190,12 +210,18 @@ function plan(args) {
     else free += 1;
   }
 
-  console.log(`\nMaterials plan: ${names.length} name(s), estimate ${model} v${PROMPT_VERSION}, icon ${iconModel} v${ICON_PROMPT_VERSION}`);
+  console.log(
+    `\nMaterials plan: ${names.length} name(s), estimate ${model} v${PROMPT_VERSION}, ` +
+      `icon ${iconModel} v${ICON_PROMPT_VERSION}, facts ${model} v${FACTS_PROMPT_VERSION}`,
+  );
   console.log(`  complete (in library, up to date):  ${complete}`);
   console.log(`  everything cached (free):           ${free}  -> (re)built with no API call`);
   console.log(`  estimate invalid (cached):          ${skipped}  -> skipped (--retry-invalid to pay again)`);
   console.log(`  need paid calls:                    ${names.length - complete - free - skipped}`);
-  console.log(`\nA full run would make ${serp} SerpAPI and ${estimates + icons} Gemini call(s) (${estimates} estimate, ${icons} icon).`);
+  console.log(
+    `\nA full run would make ${serp} SerpAPI and ${estimates + icons + facts} Gemini call(s) ` +
+      `(${estimates} estimate, ${icons} icon, ${facts} facts).`,
+  );
   console.log(`Nothing was sent. To spend: npm run materials:run -- --limit N   (N <= ${MAX_ITEMS_PER_RUN} items)`);
   console.log(`To test for free:          npm run materials:mock\n`);
   printLedger();
@@ -265,8 +291,11 @@ async function run(args) {
     console.log("\nNothing to pay for. 0 API calls made.\n");
     return printLedger();
   }
-  const serpCalls = batch.filter((b) => b.need.search).length;
-  const geminiCalls = batch.reduce((n, b) => n + (b.need.estimate ? 1 : 0) + (b.need.drawing ? 1 : 0), 0);
+  const serpCalls = batch.reduce((n, b) => n + (b.need.search ? 1 : 0) + (b.need.factSearch ? 1 : 0), 0);
+  const geminiCalls = batch.reduce(
+    (n, b) => n + (b.need.estimate ? 1 : 0) + (b.need.drawing ? 1 : 0) + (b.need.facts ? 1 : 0),
+    0,
+  );
   console.log(
     `\nThis run will make up to ${serpCalls} SerpAPI and ${geminiCalls} Gemini call(s) for: ` +
       batch.map((b) => b.name).join(", "),
@@ -282,6 +311,12 @@ async function run(args) {
     if (first.need.drawing) {
       console.log(`\nIcon request for "${first.name}":\n${describeRequest(buildIconRequest(first.name, image, iconModel))}`);
     }
+    if (first.need.factSearch) {
+      console.log(`\nFacts: a SerpAPI Google search for "${first.name} size and weight", then a Gemini read of its text results.`);
+    } else if (first.need.facts) {
+      const search = readJson(cachePath.factSearch(slugify(first.name)), null);
+      console.log(`\nFacts request for "${first.name}":\n${describeRequest(buildFactsRequest(first.name, search))}`);
+    }
     return;
   }
 
@@ -290,7 +325,7 @@ async function run(args) {
   if (serpCalls > 0 && !serpKey) fail("SERPAPI_API_KEY is not set (put it in .env.local). Nothing was spent.");
   if (!geminiKey) fail("GEMINI_API_KEY is not set (put it in .env.local). Nothing was spent.");
 
-  for (const dir of [PATHS.serp, PATHS.gemini, PATHS.icons, PATHS.images]) ensureDir(dir);
+  for (const dir of [PATHS.serp, PATHS.gemini, PATHS.icons, PATHS.facts, PATHS.images]) ensureDir(dir);
   const spent = { serpapi: 0, gemini: 0, usd: 0 };
   let consecutiveInvalid = 0;
   let done = 0;
@@ -377,15 +412,53 @@ async function run(args) {
         } else {
           invalid("icon", check.reason); // the item is still built, with the plain shape
         }
+        if (need.facts) await pause();
       }
 
-      // 4. Build the item from the caches and save it straight away.
+      // 4. Facts: a web search (SerpAPI, 1 search), then Gemini reads only its text
+      //    results (1 call) for the real size and a fun fact. Both cached forever.
+      if (need.factSearch) {
+        const search = await withOneRetry(() => searchFacts(name, serpKey));
+        spent.serpapi += 1;
+        recordCall({ api: "serpapi", stage: "facts", item: slug });
+        writeJsonAtomic(cachePath.factSearch(slug), search);
+        const extras = [search.answerBox && "answer box", search.knowledgePanel && "knowledge panel"].filter(Boolean);
+        console.log(`  search   ${search.results.length} result(s)${extras.length ? `, ${extras.join(", ")}` : ""}`);
+        await pause();
+      }
+      if (need.facts) {
+        const search = readJson(cachePath.factSearch(slug), null);
+        const answer = await withOneRetry(() => extractFacts({ name, search, model, apiKey: geminiKey }));
+        spend(answer.usage, model);
+        recordCall({ api: "gemini", stage: "facts", item: slug, model, ...answer.usage });
+        const check = answer.facts ? validateFacts(answer.facts, linksOf(search)) : { ok: false, reason: answer.parseError };
+        writeJsonAtomic(cachePath.facts(slug), {
+          name,
+          model,
+          promptVersion: FACTS_PROMPT_VERSION,
+          status: check.ok ? "ok" : "invalid",
+          reason: check.ok ? undefined : check.reason,
+          usage: answer.usage,
+          facts: check.ok ? check.facts : answer.facts,
+        });
+        if (check.ok) {
+          const est = estimateCache(slug);
+          console.log(`  facts    "${check.facts.fact}"`);
+          if (est?.status === "ok") console.log(`           ${groundEstimate(est.estimate, check.facts).note}`);
+        } else {
+          invalid("facts", check.reason); // the item is still built, from the estimate alone
+        }
+      }
+
+      // 5. Build the item from the caches and save it straight away.
       const item = itemFromCache(name);
       if (item) {
         upsert(library, item);
         finalizeLibrary(library);
         done += 1;
-        if (!need.drawing || iconCache(slug)?.status === "ok") consecutiveInvalid = 0;
+        const failed =
+          (need.drawing && iconCache(slug)?.status !== "ok") || (need.facts && factsCache(slug)?.status !== "ok");
+        if (!failed) consecutiveInvalid = 0;
         console.log(`  saved    ${item.id}: ${item.shape.kind}${item.shape.vertices ? ` (${item.shape.vertices.length} pts)` : ""}, mass ${item.mass}, friction ${item.friction}${item.icon ? ", with silhouette" : ""}`);
       }
       if (index < batch.length - 1) await pause();

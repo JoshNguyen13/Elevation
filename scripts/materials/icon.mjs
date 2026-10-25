@@ -14,8 +14,9 @@ export const ICON_PROMPT_VERSION = 3;
 // to deliberately redraw every icon and pay again; --redraw --only "<name>" redoes one.
 export const ICON_MIN_PROMPT_VERSION = 2;
 
-// How hard a thinking model may think per icon (thinking is billed as output).
-const ICON_THINKING_LEVEL = "minimal";
+// How hard a thinking model may think per icon (thinking is billed as output). The lowest
+// gemini-3.8-flash accepts: "minimal" is rejected (400), and thinkingBudget is ignored.
+const ICON_THINKING_LEVEL = "low";
 
 const SCHEMA = {
   type: "OBJECT",
@@ -46,13 +47,14 @@ export function buildIconRequest(name, image, model) {
     generationConfig: {
       temperature: 0,
       // Includes "thinking" tokens on models that think; caps the worst-case cost per call.
-      maxOutputTokens: 4000,
+      // 4,000 truncated 3 of 20 answers mid-thought (paid, but no path), so there's headroom.
+      maxOutputTokens: 8000,
       response_mime_type: "application/json",
       response_schema: SCHEMA,
       // Full Flash models think by default, billed as output. At thinkingLevel "low",
       // gemini-3.8-flash spent 3-4k thinking tokens on a brick, and it ignored a 512-token
-      // thinkingBudget (half the calls hit the 4k cap, 2026-10-25). The long-thinking calls
-      // were also the tilted / truncated ones, so icons think as little as possible.
+      // thinkingBudget (half the calls hit the 4k cap, 2026-10-25), so icons use the lowest
+      // level it accepts and a roomier output cap.
       ...(model && !model.includes("flash-lite") ? { thinkingConfig: { thinkingLevel: ICON_THINKING_LEVEL } } : {}),
     },
   };

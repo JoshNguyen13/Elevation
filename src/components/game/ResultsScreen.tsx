@@ -13,7 +13,9 @@ import {
   type LeaderboardEntry,
   type Standing,
 } from "@/lib/daily/api";
+import { getMaterial } from "@/data/materials";
 import { dayNumber, formatCountdown, msUntilRollover } from "@/lib/daily/date";
+import { hashString } from "@/lib/daily/puzzle";
 import type { RunSummary } from "@/lib/daily/run";
 import { setLocalDisplayName } from "@/lib/daily/storage";
 import styles from "./ResultsScreen.module.css";
@@ -23,6 +25,8 @@ const FULL_ROWS = 25;
 
 interface ResultsScreenProps {
   run: RunSummary;
+  // The day's pieces, for the "Did you know?" fact.
+  itemIds: string[];
   deviceId: string;
   displayName: string | null;
   // Supabase is configured: the standing and leaderboard are real.
@@ -44,9 +48,26 @@ function formatSurvival(run: RunSummary) {
     : `Survived ${seconds}s of ${run.disasterName}`;
 }
 
+// One real-world fact about one of the day's pieces, the same for every player that day.
+function factOfTheDay(date: string, itemIds: string[]) {
+  const withFacts = [...new Set(itemIds)].map(getMaterial).filter((m) => m.fact);
+  if (withFacts.length === 0) return null;
+  const material = withFacts[hashString(`fact:${date}`) % withFacts.length];
+  return { name: material.name, ...material.fact! };
+}
+
+function hostOf(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 // 04 — Results (Figma): score cards, percentile, today's leaderboard.
 export default function ResultsScreen({
   run,
+  itemIds,
   deviceId,
   displayName,
   online,
@@ -136,6 +157,9 @@ export default function ResultsScreen({
   else if (standing.beatPercent === null) percentile = "You're the first player today";
   else percentile = `You beat ${standing.beatPercent}% of today's players`;
 
+  const fact = factOfTheDay(run.date, itemIds);
+  const factHost = fact?.source ? hostOf(fact.source) : null;
+
   return (
     <div className={styles.screen}>
       <header className={styles.topBar}>
@@ -164,6 +188,17 @@ export default function ResultsScreen({
             <p className={styles.combined}>{run.combined}</p>
             <p className={styles.percentile}>{percentile}</p>
           </section>
+          {fact && (
+            <section className={styles.factCard} aria-label="Did you know?">
+              <p className={styles.cardLabel}>DID YOU KNOW? · {fact.name.toUpperCase()}</p>
+              <p className={styles.factText}>{fact.text}</p>
+              {fact.source && factHost && (
+                <a className={styles.factSource} href={fact.source} target="_blank" rel="noopener noreferrer">
+                  Source: {factHost}
+                </a>
+              )}
+            </section>
+          )}
         </div>
 
         <section className={styles.leaderboard} aria-label="Today's leaderboard">

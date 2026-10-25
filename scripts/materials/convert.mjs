@@ -63,15 +63,70 @@ export function validateEstimate(estimate) {
   return { ok: true };
 }
 
+// The facts stage's answer, cleaned: implausible numbers make it invalid, a source that
+// isn't one of the search results' links is dropped. links: what the search returned.
+export const MAX_FACT_CHARS = 140;
+export function validateFacts(facts, links = []) {
+  if (!facts || typeof facts !== "object") return { ok: false, reason: "not an object" };
+  const inRange = (v, lo, hi) => v === null || v === undefined || (isNum(v) && v >= lo && v <= hi);
+  for (const key of ["side_width_m", "side_height_m"]) {
+    if (!inRange(facts[key], 0.01, 40)) return { ok: false, reason: `${key} ${facts[key]}` };
+  }
+  if (!inRange(facts.weight_kg, 0.001, 20000)) return { ok: false, reason: `weight_kg ${facts.weight_kg}` };
+  const text = typeof facts.fact === "string" ? facts.fact.replace(/\s+/g, " ").trim() : "";
+  if (text.length < 10 || text.length > MAX_FACT_CHARS) return { ok: false, reason: `fact length ${text.length}` };
+  const num = (v) => (isNum(v) ? v : null);
+  return {
+    ok: true,
+    facts: {
+      side_width_m: num(facts.side_width_m),
+      side_height_m: num(facts.side_height_m),
+      weight_kg: num(facts.weight_kg),
+      fact: text,
+      source: links.includes(facts.source) ? facts.source : null,
+    },
+  };
+}
+
+// Sizes from search beat Gemini's guess, unless they're so far off they're likely a
+// misread (a tyre code, the box it ships in): then the estimate stands.
+export const GROUNDING = { maxRatio: 4, minChange: 0.1 };
+export function groundEstimate(estimate, facts) {
+  const ratios = [];
+  if (isNum(facts?.side_width_m)) ratios.push(facts.side_width_m / estimate.width_m);
+  if (isNum(facts?.side_height_m)) ratios.push(facts.side_height_m / estimate.height_m);
+  const fmt = (r) => `${r.toFixed(2)}x`;
+  if (ratios.length === 0) return { estimate, sizeCheck: "unchecked", note: "no size in the search results" };
+  if (ratios.some((r) => r > GROUNDING.maxRatio || r < 1 / GROUNDING.maxRatio)) {
+    return { estimate, sizeCheck: "unchecked", note: `search size ignored (${ratios.map(fmt).join(", ")} the estimate)` };
+  }
+  if (ratios.every((r) => Math.abs(r - 1) < GROUNDING.minChange)) {
+    return { estimate, sizeCheck: "confirmed", note: "search confirms the estimated size" };
+  }
+  const both = ratios.length === 2;
+  const size = both
+    ? { width_m: facts.side_width_m, height_m: facts.side_height_m }
+    : { width_m: estimate.width_m * ratios[0], height_m: estimate.height_m * ratios[0] };
+  const m = (v) => `${v.toFixed(2)} m`;
+  return {
+    estimate: { ...estimate, ...size },
+    sizeCheck: "corrected",
+    note: `size from search: ${m(estimate.width_m)} x ${m(estimate.height_m)} -> ${m(size.width_m)} x ${m(size.height_m)}`,
+  };
+}
+
 function displayName(name) {
   return name.trim().replace(/\s+/g, " ");
 }
 
 // Estimate -> Material (src/data/materials.ts). Sizes in real-world metres.
 // iconPath (optional): the raw silhouette path from the icon stage (0-100 box, y down).
-export function toMaterial(name, estimate, iconPath) {
-  const check = validateEstimate(estimate);
+// facts (optional): the facts stage's cleaned answer; corrects the size, adds the fact.
+export function toMaterial(name, rawEstimate, iconPath, facts) {
+  const check = validateEstimate(rawEstimate);
   if (!check.ok) throw new Error(`invalid estimate for "${name}": ${check.reason}`);
+  const grounded = facts ? groundEstimate(rawEstimate, facts) : null;
+  const estimate = grounded?.estimate ?? rawEstimate;
   const id = slugify(name);
   if (!id) throw new Error(`name "${name}" has no usable id`);
   if (RESERVED_IDS.includes(id)) throw new Error(`id "${id}" is reserved for a basic shape`);
@@ -153,6 +208,9 @@ export function toMaterial(name, estimate, iconPath) {
     friction: round3(friction),
     archetype: estimate.archetype,
     ...(icon ? { icon } : {}),
+    ...(facts
+      ? { fact: { text: facts.fact, ...(facts.source ? { source: facts.source } : {}), sizeCheck: grounded.sizeCheck } }
+      : {}),
   };
 }
 
@@ -258,6 +316,14 @@ export function validateLibrary(items) {
       if (!box || ![box.x, box.y, box.w, box.h].every(isNum) || box.w <= 0 || box.h <= 0) {
         problems.push(`${where}: icon box`);
       }
+    }
+    if (item.fact !== undefined) {
+      const { text, source, sizeCheck } = item.fact ?? {};
+      if (typeof text !== "string" || !text || text.length > MAX_FACT_CHARS) problems.push(`${where}: fact text`);
+      if (source !== undefined && !(typeof source === "string" && /^https?:\/\//.test(source))) {
+        problems.push(`${where}: fact source`);
+      }
+      if (!["corrected", "confirmed", "unchecked"].includes(sizeCheck)) problems.push(`${where}: fact sizeCheck`);
     }
   });
   return problems;

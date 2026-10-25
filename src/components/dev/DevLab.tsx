@@ -218,7 +218,10 @@ function Lab() {
                 <span className={styles.stats}>
                   {m.shape.kind}
                   {m.source === "generated" && !m.icon && <span className={styles.warn}> · no icon</span>}
+                  {m.fact && ` · size ${m.fact.sizeCheck === "unchecked" ? "unchecked" : `${m.fact.sizeCheck} by search`}`}
+                  {m.source === "generated" && !m.fact && <span className={styles.warn}> · no facts</span>}
                 </span>
+                {m.fact && <span className={styles.fact}>{m.fact.text}</span>}
               </button>
             );
           })}

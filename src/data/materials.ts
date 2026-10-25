@@ -18,6 +18,14 @@ export interface MaterialIcon {
   box: { x: number; y: number; w: number; h: number };
 }
 
+// A real-world fact from the pipeline's facts stage (a web search Gemini read), shown to
+// players. sizeCheck: whether that search corrected or confirmed the item's size.
+export interface MaterialFact {
+  text: string;
+  source?: string;
+  sizeCheck: "corrected" | "confirmed" | "unchecked";
+}
+
 export interface Material {
   id: string;
   name: string;
@@ -33,6 +41,7 @@ export interface Material {
   // `path` is an SVG path (absolute M L C Q Z only) in METERS, in the same frame as
   // `shape` (convex vertices / the circle's centre); `box` is its bounding box.
   icon?: MaterialIcon;
+  fact?: MaterialFact;
 }
 
 // TBD §3.1 — placeholder numbers. Sizes are real-world meters; only their

@@ -1,8 +1,10 @@
 // Custom canvas drawing for the build board (replaces Matter.Render's debug
 // view, which can't match the Figma pieces). Phase 2 can feed it body vertices.
 import { PLATFORM_CORNER_RADIUS_PX } from "@/lib/physics/constants";
+import type { Disaster } from "@/lib/physics/disasters";
 import { colors } from "@/lib/theme";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_RECT } from "./board";
+import { drawDisaster } from "./disasterVisuals";
 import type { Vec } from "./geometry";
 
 // placed: settled black piece · newest: the most recent placement (accent, as in Figma)
@@ -60,10 +62,10 @@ function fillIcon(ctx: CanvasRenderingContext2D, icon: DrawnIcon, fill: string, 
   ctx.restore();
 }
 
-// Board y of the measured-height marker and of the flood's water surface.
+// Board y of the measured-height marker, and the running disaster (drawn by disasterVisuals.ts).
 export interface BoardOverlay {
   heightLineY: number | null;
-  waterLineY: number | null;
+  disaster: Disaster | null;
 }
 
 function tracePolygon(ctx: CanvasRenderingContext2D, outline: Vec[]) {
@@ -128,7 +130,7 @@ function drawPiece(ctx: CanvasRenderingContext2D, { outline, look, icon }: Drawn
 export function drawBoard(
   ctx: CanvasRenderingContext2D,
   pieces: DrawnPiece[],
-  { heightLineY, waterLineY }: BoardOverlay,
+  { heightLineY, disaster }: BoardOverlay,
 ) {
   ctx.fillStyle = colors.background;
   ctx.fillRect(0, 0, BOARD_WIDTH_PX, BOARD_HEIGHT_PX);
@@ -141,15 +143,7 @@ export function drawBoard(
 
   pieces.forEach((piece) => drawPiece(ctx, piece));
 
-  // Water over the pieces, so submerged parts read as underwater.
-  if (waterLineY !== null && waterLineY < BOARD_HEIGHT_PX) {
-    ctx.globalAlpha = 0.22;
-    ctx.fillStyle = colors.accent;
-    ctx.fillRect(0, waterLineY, BOARD_WIDTH_PX, BOARD_HEIGHT_PX - waterLineY);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = colors.accent;
-    ctx.fillRect(0, waterLineY, BOARD_WIDTH_PX, 1.5);
-  }
+  if (disaster) drawDisaster(ctx, disaster);
 
   if (heightLineY !== null) {
     ctx.beginPath();

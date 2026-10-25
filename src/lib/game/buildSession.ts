@@ -17,7 +17,7 @@ import {
   ROTATION_STEP_DEG,
   SETTLE_DURATION_S,
 } from "@/lib/physics/constants";
-import { createDisaster, seededRandom, type Disaster } from "@/lib/physics/disasters";
+import { createDisaster, seededRandom, type Disaster, type DisasterCue } from "@/lib/physics/disasters";
 import { PhysicsWorld, type Pose } from "@/lib/physics/world";
 import type { DisasterType } from "@/lib/supabase/types";
 import { BOARD_HEIGHT_PX, BOARD_WIDTH_PX, PLATFORM_OUTLINE, PLATFORM_RECT } from "./board";
@@ -113,7 +113,9 @@ export type JuiceEvent =
   | { kind: "rotate" }
   | { kind: "fallen"; x: number; y: number }
   | { kind: "tick"; secondsLeft: number }
-  | { kind: "phase"; phase: Phase; collapsed?: boolean };
+  | { kind: "phase"; phase: Phase; collapsed?: boolean }
+  // A moment a disaster wants heard or seen (DisasterCue), raised from Disaster.apply.
+  | { kind: "disaster"; cue: DisasterCue; x?: number; y?: number; strength: number };
 
 // Impacts slower than this (px per step) are silent resting contacts.
 const MIN_IMPACT_SPEED = 1.2;
@@ -368,11 +370,11 @@ export class BuildSession {
     return drawn;
   }
 
-  // Board-wide marks: the measured height line and the flood water surface.
+  // Board-wide marks: the measured height line, and the disaster while it runs.
   overlay(): BoardOverlay {
     return {
       heightLineY: this.result && PLATFORM_RECT.y - this.result.heightPx,
-      waterLineY: this.phase === "testing" || this.phase === "done" ? this.disaster.waterLineY() : null,
+      disaster: this.phase === "testing" || this.phase === "done" ? this.disaster : null,
     };
   }
 
@@ -630,6 +632,7 @@ export class BuildSession {
           pieceUids: this.placedPieces().map((p) => p.uid),
           t: this.testMs / 1000,
           dt: PHYSICS_STEP_MS / 1000,
+          cue: (cue, detail) => this.juice({ kind: "disaster", cue, strength: 1, ...detail }),
         });
         this.testMs += PHYSICS_STEP_MS;
       }

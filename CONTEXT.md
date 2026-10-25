@@ -22,6 +22,8 @@
 - **Track A:** tune disaster magnitudes by playtesting. Every number in `src/lib/physics/disasters.ts` is a first pass. Once real items exist, also playtest day sets with huge and tiny items together.
 - **Track B (Phase 7):** see the plan below.
 
+**Team split (2026-10-25): physics, disasters and sound run as parallel tracks.** File ownership, the git workflow, the seams between tracks (disaster cues, `disasterVisuals.ts`, `sounds.ts` / `effects.ts`) and Claude Code kickoff prompts are in `docs/TEAM_PLAN.md`. Team rules for Claude Code are in `CLAUDE.md`, and each track logs its work in `docs/tracks/<track>.md`.
+
 Read "Build-phase rules" in §4 first.
 
 ### Phase 7 plan (approved 2026-10-25, Joshua; tick boxes as you go)
@@ -504,8 +506,10 @@ Elevation/
         │   ├── buildSession.ts          ← BuildSession: build rules, timer, settle, height, testing phase, collapse tracking, scores
         │   ├── dailyScale.ts            ← per-day piece scale + MAX_STACK_PX (100% height)
         │   ├── scoring.ts               ← HEIGHT_BANDS, bandFor(), HeightResult, TestResult, stabilityScore(), combinedScore()
-        │   └── draw.ts                  ← custom canvas renderer (platform, pieces, meteors, water, height line)
-        ├── juice/                       ← Phase 7: audio.ts (WebAudio synth), particles.ts, shake.ts, index.ts (events → effects)
+        │   ├── draw.ts                  ← custom canvas renderer (platform, pieces, meteors, height line)
+        │   └── disasterVisuals.ts       ← disaster drawing over the pieces (flood water; disasters track)
+        ├── juice/                       ← Phase 7: audio.ts (WebAudio synth), particles.ts, shake.ts; index.ts dispatches
+        │                                   each event to sounds.ts (sound track) and effects.ts (particles + shake)
         ├── daily/                       ← Phase 5 (Track C)
         │   ├── date.ts                  ← UTC date, rollover countdown, Day #N
         │   ├── puzzle.ts                ← generatePuzzle(date), stored-row conversion

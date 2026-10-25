@@ -1,12 +1,12 @@
 {
   "name": "brick",
   "model": "gemini-3.8-flash",
-  "promptVersion": 2,
+  "promptVersion": 3,
   "status": "ok",
   "usedImage": true,
   "usage": {
-    "inputTokens": 1289,
-    "outputTokens": 3181
+    "inputTokens": 1329,
+    "outputTokens": 89
   },
-  "path": "M10 16L53 9L90 64L90 89L41 100L10 41Z"
+  "path": "M 5 65 L 5 97 Q 5 100 8 100 L 92 100 Q 95 100 95 97 L 95 65 Q 95 62 92 62 L 8 62 Q 5 62 5 65 Z"
 }

@@ -1,13 +1,12 @@
 {
   "name": "refrigerator",
   "model": "gemini-3.8-flash",
-  "promptVersion": 2,
-  "status": "invalid",
-  "reason": "unparseable answer (MAX_TOKENS)",
+  "promptVersion": 3,
+  "status": "ok",
   "usedImage": true,
   "usage": {
-    "inputTokens": 1303,
-    "outputTokens": 3985
+    "inputTokens": 1343,
+    "outputTokens": 996
   },
-  "path": null
+  "path": "M28 97 L28 6 Q28 4 30 4 L64 4 Q68 4 70 7 L70 20 L75 22 L75 68 L70 70 L70 94 L68 95 L68 97 L65 97 L65 100 L58 100 L58 97 L38 97 L38 100 L32 100 L32 97 Z"
 }

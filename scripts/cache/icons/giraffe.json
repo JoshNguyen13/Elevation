@@ -1,0 +1,12 @@
+{
+  "name": "giraffe",
+  "model": "gemini-3.8-flash",
+  "promptVersion": 3,
+  "status": "ok",
+  "usedImage": true,
+  "usage": {
+    "inputTokens": 1313,
+    "outputTokens": 246
+  },
+  "path": "M14,14L10,16L12,18L18,17L22,23C27,33 34,44 41,52L46,67L49,100L52,100L50,68L56,66L61,100L65,100L61,65C69,65 77,61 80,56L80,100L83,100L85,61L89,75L91,74L87,55C89,52 90,48 89,45C86,42 76,43 70,44C57,37 42,22 28,10L26,5L24,5L24,9L21,7L20,9L22,12Z"
+}
