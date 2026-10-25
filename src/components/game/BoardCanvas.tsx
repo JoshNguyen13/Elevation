@@ -6,6 +6,7 @@ import type { BoardView } from "@/lib/game/boardView";
 import type { BuildSession } from "@/lib/game/buildSession";
 import { drawBoard } from "@/lib/game/draw";
 import { Juice, sound } from "@/lib/juice";
+import { colors } from "@/lib/theme";
 import styles from "./BoardCanvas.module.css";
 
 interface BoardCanvasProps {
@@ -55,6 +56,10 @@ export default function BoardCanvas({
       juice.handle(session.drainJuice(), session.getSnapshot().phase);
       juice.update(dt);
 
+      // The margin a panned (or shaking) view shows around the board.
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = colors.fillMuted;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       view.applyTo(ctx, dpr);
       // Shake moves only the drawing (board px); pointer mapping ignores it.
       const shake = juice.shake.offset(session.disasterShake());

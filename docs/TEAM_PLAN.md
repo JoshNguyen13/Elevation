@@ -37,7 +37,7 @@ Edit the files in **your** row freely. For anything else, see §4.
 | **Physics** | `src/lib/physics/world.ts` · `src/lib/physics/constants.ts` (everything **above** the "Testing Phase" block) · `src/lib/game/buildSession.ts` (everything **except** the "Testing Phase" section) · `src/lib/game/geometry.ts`, `board.ts`, `dailyScale.ts`, `scoring.ts`, `draw.ts` |
 | **Disasters** | `src/lib/physics/disasters.ts` (split it into a `disasters/` folder if it grows) · `src/lib/game/disasterVisuals.ts` · `src/lib/juice/effects.ts`, `particles.ts`, `shake.ts` · the "Testing Phase" block in `constants.ts` and the "Testing Phase" section in `buildSession.ts` · `src/components/game/StabilityMeter.tsx` |
 | **Sound** | `src/lib/juice/audio.ts`, `sounds.ts` · `src/components/game/SoundToggle.tsx` · `public/sounds/` (new, if you use audio files) |
-| **Joshua (integrator)** | `CONTEXT.md` · `scripts/**` · `src/data/**` · `src/lib/daily/**` · `supabase/**` · `package.json`, `package-lock.json` · screens (`Game.tsx`, `BuildPhase.tsx`, `*Screen.tsx`, `HeightRuler.tsx`, `PieceTray.tsx`) · `src/components/dev/**` · `src/lib/juice/index.ts` |
+| **Joshua (integrator)** | `CONTEXT.md` · `scripts/**` · `src/data/**` · `src/lib/daily/**` · `supabase/**` · `package.json`, `package-lock.json` · screens (`Game.tsx`, `BuildPhase.tsx`, `BoardCanvas.tsx`, `*Screen.tsx`, `HeightRuler.tsx`, `PieceTray.tsx`) · the camera (`src/lib/game/boardView.ts`: zoom, pan, edge auto-pan) · `src/components/dev/**` · `src/lib/juice/index.ts` |
 
 **Shared contracts.** These are the interfaces between tracks. Change them only through a contract PR (§4):
 - `JuiceEvent` and `Phase` at the top of `buildSession.ts`: events the game raises for sound and effects.
