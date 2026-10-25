@@ -1,0 +1,15 @@
+.canvas {
+  display: block;
+  flex-shrink: 0;
+  width: 400px;
+  height: 560px;
+  /* Invisible at rest like the Figma Build Area; outlines the drop zone while dragging. */
+  outline: 1px dashed transparent;
+  outline-offset: 2px;
+  touch-action: none;
+  transition: outline-color 120ms ease;
+}
+
+.canvas[data-dragging] {
+  outline-color: var(--color-border);
+}

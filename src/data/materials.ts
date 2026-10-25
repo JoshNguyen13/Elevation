@@ -63,3 +63,11 @@ export const GENERATED_ITEMS = generatedItems as Material[];
 
 // The pool the daily seed draws from (§3.3, §6).
 export const MATERIALS_POOL: Material[] = [...BASIC_SHAPES, ...GENERATED_ITEMS];
+
+const MATERIALS_BY_ID = new Map(MATERIALS_POOL.map((m) => [m.id, m]));
+
+export function getMaterial(id: string): Material {
+  const material = MATERIALS_BY_ID.get(id);
+  if (!material) throw new Error(`Unknown material id: ${id}`);
+  return material;
+}

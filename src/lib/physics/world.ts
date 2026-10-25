@@ -3,13 +3,11 @@ import {
   CANVAS_HEIGHT_M,
   CANVAS_WIDTH_M,
   GRAVITY_Y,
-  PLATFORM_BOTTOM_MARGIN_M,
   PLATFORM_CORNER_RADIUS_PX,
-  PLATFORM_HEIGHT_M,
-  PLATFORM_WIDTH_M,
   RESTITUTION,
   toPx,
 } from "./constants";
+import { PLATFORM_RECT } from "@/lib/game/board";
 import { colors } from "@/lib/theme";
 
 export interface PhysicsWorld {
@@ -19,12 +17,9 @@ export interface PhysicsWorld {
 }
 
 export function createPlatform(): Matter.Body {
-  const width = toPx(PLATFORM_WIDTH_M);
-  const height = toPx(PLATFORM_HEIGHT_M);
-  const x = toPx(CANVAS_WIDTH_M) / 2;
-  const y = toPx(CANVAS_HEIGHT_M - PLATFORM_BOTTOM_MARGIN_M) - height / 2;
+  const { x, y, width, height } = PLATFORM_RECT;
 
-  return Matter.Bodies.rectangle(x, y, width, height, {
+  return Matter.Bodies.rectangle(x + width / 2, y + height / 2, width, height, {
     isStatic: true,
     label: "platform",
     restitution: RESTITUTION,

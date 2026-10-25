@@ -1,7 +1,7 @@
 /* Tokens from Elevation.fig — mirrored in src/lib/theme.ts for canvas drawing. */
 :root {
   --color-background: #ffffff;
-  --color-surface: #f9f9fa;
+  --color-fill-muted: #ededf0;
   --color-ink: #000000;
   --color-ink-soft: #1c1c21;
   --color-text-muted: #6b6b73;
@@ -9,13 +9,16 @@
   --color-border: #e0e0e3;
   --color-border-strong: #dedee3;
   --color-platform: #bfbfc4;
-  --color-disabled: #b2b2b8;
+  --color-tick: #b2b2b8;
   --color-accent: #296eed;
+
+  --opacity-placed: 0.32;
 
   --radius-button: 8px;
   --radius-tray-piece: 10px;
   --radius-step-card: 12px;
   --radius-score-card: 14px;
+  --radius-meter: 5px;
   --radius-pill: 999px;
 }
 
