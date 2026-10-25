@@ -57,7 +57,23 @@ export const ROTATION_STEP_DEG = 1; // TBD §2.2 — fine steps; holding Q/E rep
 
 // Matter uses the higher frictionStatic of two touching bodies, so this sets how
 // hard resting pieces are to nudge off each other, whatever their kinetic friction.
-export const FRICTION_STATIC = 2;
+export const FRICTION_STATIC = 3;
+// Matter uses the lower friction of two touching bodies. The platform sits above every
+// material's friction, so a piece on it grips with its own.
+export const PLATFORM_FRICTION = 2;
+
+// Bonded stacks: two pieces resting on each other are welded at their contact points, so a
+// stable stack acts as one body (pieces stop sliding off each other under a disaster), until
+// a hard enough jolt snaps the weld. TBD — tune with the disasters.
+// Steps two touching pieces must stay calm (relative speed below BOND_CALM_SPEED px/step) to bond.
+export const BOND_REST_STEPS = 30;
+export const BOND_CALM_SPEED = 0.1;
+// Weld springiness (Matter constraint stiffness, 0–1) and damping.
+export const BOND_STIFFNESS = 0.5;
+export const BOND_DAMPING = 0.1;
+// A weld snaps once its two anchors are pulled this far apart (px). At 0.5 a meteor hit
+// snaps welds; an earthquake doesn't.
+export const BOND_BREAK_PX = 0.5;
 export const DAILY_PIECE_COUNT = 10; // §3.3
 
 // --- Testing Phase (disasters track) -------------------------------------------

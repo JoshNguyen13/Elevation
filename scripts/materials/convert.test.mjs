@@ -53,8 +53,20 @@ test("very thin objects are clamped to a sane aspect ratio", () => {
 });
 
 test("friction follows roughness within range", () => {
-  assert.equal(toMaterial("Ice block", { ...base, surface_roughness: 0 }).friction, 0.7);
-  assert.equal(toMaterial("Sandpaper block", { ...base, surface_roughness: 1 }).friction, 1.5);
+  assert.equal(toMaterial("Ice block", { ...base, surface_roughness: 0 }).friction, 1);
+  assert.equal(toMaterial("Sandpaper block", { ...base, surface_roughness: 1 }).friction, 1.8);
+});
+
+test("animals get a flatter hitbox than their silhouette's hull, still convex", () => {
+  // A dome: the plain hull's top is a curve; the animal's is pushed out toward the box.
+  const dome = "M0 100L0 60C0 20 30 0 50 0C70 0 100 20 100 60L100 100Z";
+  const plain = toMaterial("Boulder", base, dome);
+  const animal = toMaterial("Elephant", base, dome);
+  const area = (v) => v.reduce((s, p, i) => s + p.x * v[(i + 1) % v.length].y - v[(i + 1) % v.length].x * p.y, 0) / 2;
+  assert.ok(Math.abs(area(animal.shape.vertices)) > Math.abs(area(plain.shape.vertices)));
+  assert.ok(isConvex(animal.shape.vertices));
+  assert.ok(animal.shape.vertices.length <= 12);
+  assert.deepEqual(validateLibrary([animal]), []);
 });
 
 test("bad estimates are rejected, not turned into items", () => {

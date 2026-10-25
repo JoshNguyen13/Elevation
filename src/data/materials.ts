@@ -53,7 +53,7 @@ export const BASIC_SHAPES: Material[] = [
     source: "basic",
     shape: { kind: "box", width: 1.8, height: 1.8 },
     mass: 2,
-    friction: 1,
+    friction: 1.3,
     archetype: "wide-stable",
   },
   {
@@ -62,7 +62,7 @@ export const BASIC_SHAPES: Material[] = [
     source: "basic",
     shape: { kind: "regularPolygon", sides: 3, radius: 0.85 },
     mass: 1,
-    friction: 1,
+    friction: 1.3,
     archetype: "irregular",
   },
   {
@@ -71,7 +71,7 @@ export const BASIC_SHAPES: Material[] = [
     source: "basic",
     shape: { kind: "regularPolygon", sides: 5, radius: 1.1 },
     mass: 3.5,
-    friction: 1.3,
+    friction: 1.6,
     archetype: "wide-stable",
   },
 ];

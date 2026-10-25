@@ -34,12 +34,19 @@ export const LIMITS = {
   maxMass: 12,
   // Most hitbox points when the hull comes from a silhouette.
   maxHullVertices: 12,
-  // friction = base + roughness * span, clamped. The basic shapes sit at 1-1.3.
-  frictionBase: 0.7,
+  // How far an animal's hull points move out to its bounding box (FLAT_HULL_IDS), 0-1.
+  flatHullBlend: 0.5,
+  // friction = base + roughness * span, clamped. The basic shapes sit at 1.3-1.6. Raised
+  // from 0.7-1.5 so nothing is slippery; stays under the platform's 2 (PLATFORM_FRICTION).
+  frictionBase: 1,
   frictionSpan: 0.8,
-  minFriction: 0.7,
-  maxFriction: 1.5,
+  minFriction: 1,
+  maxFriction: 1.8,
 };
+
+// Animals get a flatter hitbox than their silhouette's hull, so their backs can be built on
+// (a giraffe's hull is otherwise a steep triangle). Ids, as slugs.
+export const FLAT_HULL_IDS = ["elephant", "giraffe"];
 
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 const round3 = (v) => Math.round(v * 1000) / 1000;
@@ -162,11 +169,11 @@ export function toMaterial(name, rawEstimate, iconPath, facts) {
     const scale = Math.sqrt((width * height) / (b.w * b.h));
     const origin = { x: b.minX + b.w / 2, y: b.minY };
     const placed = points.map((p) => ({ x: (p.x - origin.x) * scale, y: (p.y - origin.y) * scale }));
+    let outline = simplifyHull(convexHull(placed), LIMITS.maxHullVertices);
+    if (FLAT_HULL_IDS.includes(id)) outline = flattenHull(outline, LIMITS.flatHullBlend);
     // Hull again after rounding to mm: on thin items (a book), rounding can put a tiny
     // dent in the outline, and the engine needs it strictly convex.
-    const hull = convexHull(
-      simplifyHull(convexHull(placed), LIMITS.maxHullVertices).map((p) => ({ x: round3(p.x), y: round3(p.y) })),
-    );
+    const hull = convexHull(outline.map((p) => ({ x: round3(p.x), y: round3(p.y) })));
     shape = { kind: "convex", vertices: hull };
     area = polygonArea(hull);
     icon = iconIn(silhouette, origin, scale);
@@ -240,6 +247,22 @@ function iconIn(silhouette, origin, scale) {
   const b = bounds(flatten(parsePath(path, MAX_ICON_PATH_CHARS)));
   const r4 = (v) => Math.round(v * 10000) / 10000;
   return { path, box: { x: r4(b.minX), y: r4(b.minY), w: r4(b.w), h: r4(b.h) } };
+}
+
+// Moves each hull point `t` of the way out to the hull's bounding box, along the ray from
+// the box's centre: flatter top and sides, with the corners still rounded off.
+export function flattenHull(hull, t) {
+  const b = bounds(hull);
+  const cx = b.minX + b.w / 2;
+  const cy = b.minY + b.h / 2;
+  return convexHull(
+    hull.map((p) => {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const k = Math.min(dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
+      return { x: p.x + t * (dx * k - dx), y: p.y + t * (dy * k - dy) };
+    }),
+  );
 }
 
 // Whether every turn has the same direction (the engine needs convex hulls).

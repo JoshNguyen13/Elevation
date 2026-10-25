@@ -9,6 +9,43 @@ Newest first. One entry per session or PR: date · who · branch · what changed
 - Open:
 -->
 
+## 2026-10-25 · Matthew/Joshua (+ Claude Code) · physics/bonded-stacks
+- Changed:
+  - **Bonded stacks** (`world.ts`, `BOND_*` in `constants.ts`). Two pieces in contact that both stay calm for 30 steps (0.5s) are welded by two Matter pins at their contact points. A weld snaps once its anchors are pulled 0.5px apart, and calm pieces bond again.
+    - Never bonds: the platform (towers still slide and tip on the ground), the frozen piece (welds removed on freeze), meteors.
+    - `removePiece` (pickup, fallen, lost) removes a piece's welds.
+    - Runs once per fixed step from physics state only, so disasters stay deterministic.
+    - `debugPieces()` lists each piece's `bondedTo`.
+  - **Friction up** (integrator OK):
+    - Generated items +0.3 (`LIMITS` in `convert.mjs`: base/min 0.7 → 1, max 1.5 → 1.8), now 1.16–1.72.
+    - Basic shapes 1/1/1.3 → 1.3/1.3/1.6.
+    - `FRICTION_STATIC` 2 → 3.
+    - The platform's friction is now `PLATFORM_FRICTION` 2 (Matter forced static bodies to 1, which capped every contact with the platform at 1). A frozen piece keeps its material's friction.
+  - **Elephant redrawn as a side view.** Hand-drawn path in `scripts/cache/icons/elephant.json` (`"model": "hand-drawn"`; `generate.mjs` now always keeps hand-drawn icons, so a run never pays to replace them). Same cached area, so 3.16 × 3.26 → 3.78 × 2.78 m, mass 2.765 → 2.881.
+  - **Flatter animal hitboxes.** `FLAT_HULL_IDS` (elephant, giraffe) in `convert.mjs`: each hull point moves halfway (`LIMITS.flatHullBlend`) out to the bounding box. Flatter top and sides, corners still rounded. Rebuilt with `npm run materials:rebuild` (no API calls); `materials:test` 28/28, `materials:check` ok.
+- Tried / numbers (Dev Lab; tray = 6 squares + refrigerator + 3 tennis balls, 26.9 px/m; 6-square column, then the disaster at 4x):
+  - **Before:** pieces slide off each other while the piece below is still level (0.1–0.5° tilt).
+
+    | Disaster | Before: survived | Before: slip | After: survived | After: slip |
+    |---|---|---|---|---|
+    | Earthquake | 49.7s | 71–81px | **75s (full)** | 0.1px |
+    | Flood | 21–23s | 64–87px | **31s** | 0px |
+    | Meteor | 23–24s | 64–98px | 22s | 28px (welds snap on hits) |
+    | Wind | 3s | 23px | 3s (tips as one) | 0.1px |
+
+  - **Friction alone does nothing measurable.** Item and platform friction 0.5–4 and frictionStatic 0.5–10 gave the same first-slip times (17s quake, 13s flood), the same slope creep (5.7 px/s at 20°), and the same slide after a 6 px/step shove (53–62px). Matter's grip depends on overlap, not weight. Raised anyway on request.
+  - **Bond tuning:** break 3 or 6px never snapped, even on a full collapse. 0.5px snaps on meteor hits but not quakes. 0.3px with stiffness 0.2 lets a quake break the tower at ~69s.
+  - **Build rules checked:**
+    - the frozen piece holds no welds;
+    - picking up a middle piece removed its 2 welds, the piece above fell 48px and re-bonded;
+    - Esc returned it to the tray (spot taken);
+    - live height 5.4 → 3.6 m;
+    - no page errors.
+- Open:
+  - **Disasters need retuning:** a bonded column now survives the full 75s earthquake, and wind still flattens a bare column in 3s.
+  - **Item sizes changed,** so the elephant's new shape changes `pieceScale()` on elephant days.
+  - **The giraffe's hull is still steep** at blend 0.5; 1.0 (the full rounded box) would flatten it but leaves pieces floating above its back.
+
 ## 2026-10-25 · Preston (sound, drafted for physics) · physics/juice-phase-disaster
 - Changed: contract PR. The `phase` `JuiceEvent` gets an optional `disaster?: DisasterType`, set on the `testing` event, so sound can start that disaster's ambience loop. No behavior change; the disasters track can ignore the field.
 - Open: none.

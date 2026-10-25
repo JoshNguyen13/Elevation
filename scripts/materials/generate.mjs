@@ -89,9 +89,12 @@ function estimateCache(slug) {
   return entry && entry.promptVersion === PROMPT_VERSION && entry.model === model ? entry : null;
 }
 
-// Icons from any prompt version since ICON_MIN_PROMPT_VERSION still count.
+// Icons from any prompt version since ICON_MIN_PROMPT_VERSION still count. A hand-drawn
+// icon (model "hand-drawn", same 0-100 bottom-resting path format) always counts, so a
+// run never pays to replace it; only --redraw --only "<name>" does.
 function iconCache(slug) {
   const entry = readJson(cachePath.icon(slug), null);
+  if (entry?.model === "hand-drawn") return entry;
   return entry && entry.promptVersion >= ICON_MIN_PROMPT_VERSION && entry.model === iconModel ? entry : null;
 }
 

@@ -406,6 +406,7 @@ export class BuildSession {
       frozen: p.uid === this.frozenUid,
       pose: p.status === "placed" ? this.world.pose(p.uid) : null,
       vertices: p.status === "placed" ? this.world.vertices(p.uid) : null,
+      bondedTo: p.status === "placed" ? this.world.bondedTo(p.uid) : [],
     }));
   }
 

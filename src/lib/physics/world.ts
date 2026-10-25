@@ -3,8 +3,14 @@ import type { Material } from "@/data/materials";
 import { PLATFORM_RECT } from "@/lib/game/board";
 import type { Vec } from "@/lib/game/geometry";
 import {
+  BOND_BREAK_PX,
+  BOND_CALM_SPEED,
+  BOND_DAMPING,
+  BOND_REST_STEPS,
+  BOND_STIFFNESS,
   FRICTION_STATIC,
   PLATFORM_CORNER_RADIUS_PX,
+  PLATFORM_FRICTION,
   POSITION_ITERATIONS,
   RESTITUTION,
   VELOCITY_ITERATIONS,
@@ -24,14 +30,46 @@ export interface Pose {
   angle: number;
 }
 
+// Two pins welding pieces a and b together where they touched (BOND_* in constants.ts).
+interface Weld {
+  a: Matter.Body;
+  b: Matter.Body;
+  pins: Matter.Constraint[];
+}
+
 function createPlatform(): Matter.Body {
   const { x, y, width, height } = PLATFORM_RECT;
-  return Matter.Bodies.rectangle(x + width / 2, y + height / 2, width, height, {
+  const platform = Matter.Bodies.rectangle(x + width / 2, y + height / 2, width, height, {
     isStatic: true,
     label: "platform",
     restitution: RESTITUTION,
     chamfer: { radius: PLATFORM_CORNER_RADIUS_PX },
   });
+  // Static bodies get friction 1; raise it so a piece on the platform grips with its own.
+  platform.friction = PLATFORM_FRICTION;
+  return platform;
+}
+
+// setStatic() also forces friction 1; a frozen piece keeps its material's, so pieces resting
+// on it grip as they will once it unfreezes (Matter restores the rest on unfreeze).
+function setStatic(body: Matter.Body, isStatic: boolean) {
+  const { friction } = body;
+  Matter.Body.setStatic(body, isStatic);
+  if (isStatic) body.friction = friction;
+}
+
+// Still enough to bond: moving slower than BOND_CALM_SPEED, at its centre and at its rim.
+function isCalm(body: Matter.Body): boolean {
+  const { min, max } = body.bounds;
+  const rim = Math.hypot(max.x - min.x, max.y - min.y) / 2;
+  return body.speed + body.angularSpeed * rim < BOND_CALM_SPEED;
+}
+
+// How far apart a pin's two anchors have been pulled, in px.
+function pinGap(pin: Matter.Constraint): number {
+  const a = Matter.Vector.add(pin.bodyA!.position, pin.pointA);
+  const b = Matter.Vector.add(pin.bodyB!.position, pin.pointB);
+  return Matter.Vector.magnitude(Matter.Vector.sub(a, b));
 }
 
 // The Matter.js world, in pixel space. It knows nothing about game rules
@@ -39,6 +77,11 @@ function createPlatform(): Matter.Body {
 export class PhysicsWorld {
   readonly engine: Matter.Engine;
   private readonly bodies = new Map<string, Matter.Body>();
+  // Piece bodies (not the platform or meteors): only pieces bond.
+  private readonly pieceBodies = new Set<Matter.Body>();
+  // Per touching pair of pieces: calm steps in a row, and the weld once they've bonded.
+  private calmSteps = new Map<string, number>();
+  private readonly welds = new Map<string, Weld>();
   // New contacts since the last drain, for sound / particles only (never fed back).
   private impacts: Impact[] = [];
 
@@ -86,22 +129,27 @@ export class PhysicsWorld {
     // Mass before freezing: setStatic() stores mass/friction and restores them on unfreeze.
     Matter.Body.setMass(body, material.mass);
     Matter.Body.setAngle(body, pose.angle);
-    if (frozen) Matter.Body.setStatic(body, true);
+    if (frozen) setStatic(body, true);
     Matter.Composite.add(this.engine.world, body);
     this.bodies.set(uid, body);
+    this.pieceBodies.add(body);
   }
 
   removePiece(uid: string) {
     const body = this.bodies.get(uid);
     if (!body) return;
+    this.unweld(body);
     Matter.Composite.remove(this.engine.world, body);
     this.bodies.delete(uid);
+    this.pieceBodies.delete(body);
   }
 
-  // Frozen = static: weightless and immovable, but still collidable (§4.3).
+  // Frozen = static: weightless and immovable, but still collidable (§4.3). A frozen
+  // piece holds no welds, or it would hang the stack from a floating piece.
   setFrozen(uid: string, frozen: boolean) {
     const body = this.body(uid);
-    Matter.Body.setStatic(body, frozen);
+    if (frozen) this.unweld(body);
+    setStatic(body, frozen);
     if (!frozen) {
       Matter.Body.setVelocity(body, { x: 0, y: 0 });
       Matter.Body.setAngularVelocity(body, 0);
@@ -147,6 +195,60 @@ export class PhysicsWorld {
 
   step(deltaMs: number) {
     Matter.Engine.update(this.engine, deltaMs);
+    this.updateWelds();
+  }
+
+  // Uids of the pieces welded to this one (dev / debug).
+  bondedTo(uid: string): string[] {
+    const body = this.body(uid);
+    return [...this.welds.values()].flatMap((w) => (w.a === body ? [w.b.label] : w.b === body ? [w.a.label] : []));
+  }
+
+  // Snaps over-stretched welds, then welds touching pieces that have stayed calm for
+  // BOND_REST_STEPS. Runs once per fixed step, from physics state only, so it's deterministic.
+  private updateWelds() {
+    for (const [key, weld] of this.welds) {
+      if (weld.pins.some((pin) => pinGap(pin) > BOND_BREAK_PX)) this.removeWeld(key);
+    }
+    const calmSteps = new Map<string, number>();
+    for (const pair of this.engine.pairs.list) {
+      const a = pair.bodyA.parent;
+      const b = pair.bodyB.parent;
+      if (!pair.isActive || a.isStatic || b.isStatic || !this.pieceBodies.has(a) || !this.pieceBodies.has(b)) continue;
+      const key = a.id < b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
+      if (this.welds.has(key)) continue;
+      const steps = isCalm(a) && isCalm(b) ? (this.calmSteps.get(key) ?? 0) + 1 : 0;
+      calmSteps.set(key, steps);
+      // Two contact points, so the weld also holds against turning (Matter types omit supportCount).
+      const { supports, supportCount } = pair.collision as Matter.Collision & { supportCount: number };
+      if (steps < BOND_REST_STEPS || supportCount < 2) continue;
+      const pins = supports.slice(0, 2).map((at) =>
+        Matter.Constraint.create({
+          label: "weld",
+          bodyA: a,
+          bodyB: b,
+          pointA: Matter.Vector.sub(at, a.position),
+          pointB: Matter.Vector.sub(at, b.position),
+          length: 0,
+          stiffness: BOND_STIFFNESS,
+          damping: BOND_DAMPING,
+        }),
+      );
+      Matter.Composite.add(this.engine.world, pins);
+      this.welds.set(key, { a, b, pins });
+    }
+    this.calmSteps = calmSteps;
+  }
+
+  private removeWeld(key: string) {
+    Matter.Composite.remove(this.engine.world, this.welds.get(key)!.pins);
+    this.welds.delete(key);
+  }
+
+  private unweld(body: Matter.Body) {
+    for (const [key, weld] of this.welds) {
+      if (weld.a === body || weld.b === body) this.removeWeld(key);
+    }
   }
 
   body(uid: string): Matter.Body {
