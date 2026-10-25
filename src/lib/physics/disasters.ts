@@ -66,13 +66,22 @@ const WIND = {
 };
 
 function createWind(direction: 1 | -1): Disaster {
+  // The last gust value and whether it was rising, to cue each strong gust at its peak.
+  let lastGust = 0;
+  let rising = false;
   return {
     type: "wind",
     name: DISASTER_NAMES.wind,
     label: "⚠ High Wind — Intensifying",
-    apply({ world, pieceUids, t }) {
+    apply({ world, pieceUids, t, cue }) {
       const intensity = WIND.base + WIND.perSecond * t;
       const gust = 0.75 + 0.25 * Math.sin((2 * Math.PI * t) / 4) + 0.15 * Math.sin((2 * Math.PI * t) / 1.3);
+      // A strong gust just peaked: cue it on the upwind side, by how hard it blows.
+      if (rising && gust < lastGust && lastGust > 0.85) {
+        cue("gust", { x: BOARD_WIDTH_PX * (direction > 0 ? 0.2 : 0.8), strength: Math.min(1, (intensity * lastGust) / 1.6) });
+      }
+      rising = gust > lastGust;
+      lastGust = gust;
       for (const uid of pieceUids) {
         const body = world.body(uid);
         const fx = WIND.pressure * intensity * gust * verticalExtent(body).height * (0.5 + elevation(body));
@@ -97,13 +106,21 @@ const QUAKE = {
 function createEarthquake(): Disaster {
   let phase = 0;
   let shake = 0;
+  // Which shake cycle last raised a "tremor" cue (one per cycle, at its peak).
+  let cuedCycle = -1;
   return {
     type: "earthquake",
     name: DISASTER_NAMES.earthquake,
     label: "⚠ Earthquake — Intensifying",
-    apply({ world, pieceUids, t, dt }) {
+    apply({ world, pieceUids, t, dt, cue }) {
       phase += 2 * Math.PI * (QUAKE.baseHz + QUAKE.hzPerSecond * t) * dt;
-      const g = (QUAKE.baseG + QUAKE.gPerSecond * t) * Math.sin(phase);
+      const amplitude = QUAKE.baseG + QUAKE.gPerSecond * t;
+      const g = amplitude * Math.sin(phase);
+      const cycle = Math.floor((phase - Math.PI / 2) / (2 * Math.PI));
+      if (cycle > cuedCycle) {
+        cuedCycle = cycle;
+        cue("tremor", { strength: Math.min(1, amplitude / 0.6) });
+      }
       shake = Math.min(1, Math.abs(g) / 0.6);
       const accel = g * world.gravityAccel;
       for (const uid of pieceUids) world.applyForce(uid, { x: world.body(uid).mass * accel, y: 0 });
@@ -127,16 +144,27 @@ const FLOOD = {
   currentPerSecond: 0.0003,
   // Fraction of velocity removed per step when fully submerged.
   drag: 0.02,
+  // "wave" cue timing (sound and visuals only).
+  firstWaveAtS: 2,
+  baseWaveIntervalS: 3.5,
+  minWaveIntervalS: 1.5,
+  waveIntervalShrinkPerS: 0.03,
 };
 
 function createFlood(direction: 1 | -1): Disaster {
   let waterY = PLATFORM_RECT.y + FLOOD.startBelowPlatformPx;
+  let nextWaveAt = FLOOD.firstWaveAtS;
   return {
     type: "flood",
     name: DISASTER_NAMES.flood,
     label: "⚠ Flood — Water Rising",
-    apply({ world, pieceUids, t }) {
+    apply({ world, pieceUids, t, cue }) {
       waterY = PLATFORM_RECT.y + FLOOD.startBelowPlatformPx - (FLOOD.riseSpeed * t + 0.5 * FLOOD.riseAccel * t * t);
+      // A wave crest (view only: the water itself stays flat), more often and stronger over time.
+      if (t >= nextWaveAt) {
+        nextWaveAt = t + Math.max(FLOOD.minWaveIntervalS, FLOOD.baseWaveIntervalS - FLOOD.waveIntervalShrinkPerS * t);
+        cue("wave", { x: BOARD_WIDTH_PX * (direction > 0 ? 0.25 : 0.75), y: waterY, strength: Math.min(1, 0.3 + t / 60) });
+      }
       const g = world.gravityAccel;
       // Matter turns force into a velocity change of force / mass × step², so this
       // removes FLOOD.drag of the velocity per step.
