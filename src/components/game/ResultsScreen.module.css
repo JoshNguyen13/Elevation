@@ -1,0 +1,217 @@
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 56px 72px;
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.body {
+  display: flex;
+  align-items: flex-start;
+  gap: 64px;
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cards {
+  display: flex;
+  gap: 20px;
+}
+
+/* Figma Score Card: 1.5px ink border, radius 14. */
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px 32px;
+  border: 1.5px solid var(--color-ink);
+  border-radius: var(--radius-score-card);
+  background: var(--color-background);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cardLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.cardValue {
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.cardNote {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.combinedCard {
+  padding: 28px;
+}
+
+.combined {
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.percentile {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 280px;
+  padding: 24px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-score-card);
+  background: var(--color-background);
+}
+
+.boardTitle {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
+
+/* Figma Leaderboard Row: rank, name, score. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  font-size: 13px;
+}
+
+.row[data-gap] {
+  border-top: 1px dashed var(--color-border-strong);
+}
+
+.row[data-self] .name,
+.row[data-self] .score {
+  color: var(--color-accent);
+}
+
+.rank {
+  min-width: 28px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.score {
+  font-weight: 700;
+}
+
+.boardNote {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.nameForm {
+  display: flex;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-button);
+  font: inherit;
+  font-size: 13px;
+}
+
+.nameSave {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: var(--color-ink);
+  color: var(--color-background);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nameSave:disabled {
+  background: var(--color-fill-muted);
+  color: var(--color-text-subtle);
+  cursor: not-allowed;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.comeBack {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.countdown {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

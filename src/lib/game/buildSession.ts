@@ -42,6 +42,10 @@ import {
 // "lost": fell off the board after the build ended, so it's gone for good.
 export type PieceStatus = "tray" | "held" | "placed" | "lost";
 
+// Disaster playback speed multipliers.
+export const SIM_SPEEDS = [1, 2, 4] as const;
+export type SimSpeed = (typeof SIM_SPEEDS)[number];
+
 // build → (timer hits 0) → settling → (SETTLE_DURATION_S) → measured → (HEIGHT_REVEAL_S)
 // → testing → (collapse or MAX_TEST_DURATION_S) → done
 export type Phase = "build" | "settling" | "measured" | "testing" | "done";
@@ -87,6 +91,8 @@ export interface BuildSnapshot {
   disasterLabel: string;
   // Whole seconds survived in the Testing Phase.
   testSeconds: number;
+  // Disaster playback speed.
+  speed: SimSpeed;
   // Fraction of the measured tower's pieces not yet fallen (§4.7), 1 before the test.
   integrity: number;
   // Stability and combined score, once the test ends.
@@ -130,6 +136,7 @@ export class BuildSession {
   private frozenUid: string | null = null;
   private nextSeq = 0;
   private stepBacklogMs = 0;
+  private speed: SimSpeed = 1;
   private phase: Phase = "build";
   private buildMsLeft = BUILD_DURATION_S * 1000;
   private settleMsLeft = SETTLE_DURATION_S * 1000;
@@ -183,6 +190,7 @@ export class BuildSession {
       disasterName: this.disaster.name,
       disasterLabel: this.disaster.label,
       testSeconds: Math.floor(this.testMs / 1000),
+      speed: this.speed,
       integrity: this.integrity(),
       outcome: this.outcome,
     };
@@ -473,6 +481,33 @@ export class BuildSession {
       combined: combinedScore(this.result!.percent, stability),
     };
     this.phase = "done";
+    // The aftermath plays at normal speed.
+    this.speed = 1;
+    this.stepBacklogMs = Math.min(this.stepBacklogMs, MAX_FRAME_MS);
+    this.emit();
+  }
+
+  // Checked after every fixed step, so the recorded survival time is the same at any speed.
+  // Returns true when the test just ended.
+  private checkTestEnd(): boolean {
+    const fell = this.trackCollapse();
+    if (this.fallen.size >= COLLAPSE_FALLEN_FRACTION * this.towerUids.length) {
+      this.finishTest(true);
+      return true;
+    }
+    if (this.testMs >= MAX_TEST_DURATION_S * 1000) {
+      this.finishTest(false);
+      return true;
+    }
+    if (fell) this.emit();
+    return false;
+  }
+
+  // Disaster playback speed (Clash-of-Clans style). It only runs more fixed steps per
+  // frame, so the outcome is identical at 1x, 2x and 4x.
+  setSpeed(speed: SimSpeed) {
+    if (this.speed === speed) return;
+    this.speed = speed;
     this.emit();
   }
 
@@ -483,9 +518,11 @@ export class BuildSession {
   // The test clock counts fixed steps, so a disaster plays out identically every run.
   step(elapsedMs: number) {
     const dt = Math.min(elapsedMs, MAX_FRAME_MS);
-    this.stepBacklogMs = Math.min(this.stepBacklogMs + dt, MAX_FRAME_MS);
+    const speed = this.phase === "testing" ? this.speed : 1;
+    this.stepBacklogMs = Math.min(this.stepBacklogMs + dt * speed, MAX_FRAME_MS * speed);
     while (this.stepBacklogMs >= PHYSICS_STEP_MS) {
-      if (this.phase === "testing") {
+      const testing = this.phase === "testing";
+      if (testing) {
         this.disaster.apply({
           world: this.world,
           pieceUids: this.placedPieces().map((p) => p.uid),
@@ -496,6 +533,10 @@ export class BuildSession {
       }
       this.world.step(PHYSICS_STEP_MS);
       this.stepBacklogMs -= PHYSICS_STEP_MS;
+      if (testing) {
+        this.removeFallenPieces();
+        this.checkTestEnd();
+      }
     }
 
     this.removeFallenPieces();
@@ -516,10 +557,7 @@ export class BuildSession {
       this.phase = "testing";
       this.emit();
     } else if (this.phase === "testing") {
-      const fell = this.trackCollapse();
-      if (this.fallen.size >= COLLAPSE_FALLEN_FRACTION * this.towerUids.length) this.finishTest(true);
-      else if (this.testMs >= MAX_TEST_DURATION_S * 1000) this.finishTest(false);
-      else if (fell || Math.floor(this.testMs / 1000) !== this.snapshot.testSeconds) this.emit();
+      if (Math.floor(this.testMs / 1000) !== this.snapshot.testSeconds) this.emit();
     }
   }
 

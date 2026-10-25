@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from "react";
 import { BOARD_WIDTH_PX } from "@/lib/game/board";
-import { BuildSession, type BuildSnapshot, type Held } from "@/lib/game/buildSession";
+import { BuildSession, SIM_SPEEDS, type BuildSnapshot, type Held } from "@/lib/game/buildSession";
 import { boundsOf, transformOutline, type Vec } from "@/lib/game/geometry";
-import { DISASTER_TYPES } from "@/lib/physics/disasters";
-import type { DisasterType } from "@/lib/supabase/types";
+import type { DailyPuzzle } from "@/lib/daily/puzzle";
+import { runFromSnapshot, type RunSummary } from "@/lib/daily/run";
 import { colors } from "@/lib/theme";
+import Button from "@/components/ui/Button";
 import BoardCanvas from "./BoardCanvas";
 import HeightRuler from "./HeightRuler";
 import PieceSvg from "./PieceSvg";
@@ -23,23 +24,41 @@ function statusText({ phase, secondsLeft, result }: BuildSnapshot) {
   return `Height: ${result.heightM.toFixed(1)} m · ${result.band}`;
 }
 
-// Placeholder until the daily seed picks the disaster (Phase 5). `?disaster=flood` overrides it.
-function initialDisaster(): DisasterType {
-  if (typeof window === "undefined") return "wind";
-  const param = new URLSearchParams(window.location.search).get("disaster");
-  return DISASTER_TYPES.find((d) => d === param) ?? "wind";
+interface BuildPhaseProps {
+  puzzle: DailyPuzzle;
+  // Called once when the test ends, with the finished run (the parent saves + submits it).
+  onComplete: (run: RunSummary) => void;
+  // "See Results" after the test ends.
+  onContinue: () => void;
 }
 
 // 02 — Build Phase → 03 — Testing Phase (Figma). Drag from the tray, Q/E to rotate,
 // pieces fall under the freeze-on-placement rule (§4.3). When the timer ends the
 // tower settles, its height is measured (§4.6, §5.1), then the day's disaster tests
 // it (§4.10). The BuildSession owns the rules and physics.
-export default function BuildPhase() {
-  const [session] = useState(() => new BuildSession({ disaster: initialDisaster() }));
+export default function BuildPhase({ puzzle, onComplete, onContinue }: BuildPhaseProps) {
+  const [session] = useState(
+    () =>
+      new BuildSession({
+        materialIds: puzzle.itemIds,
+        disaster: puzzle.disaster,
+        seed: puzzle.seedNumber,
+      }),
+  );
   const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   const { pieces, held, phase, result, outcome } = snapshot;
   const testing = phase === "testing" || phase === "done";
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Report the finished run exactly once.
+  const reported = useRef(false);
+  useEffect(() => {
+    if (phase !== "done" || reported.current) return;
+    const run = runFromSnapshot(puzzle.date, snapshot);
+    if (!run) return;
+    reported.current = true;
+    onComplete(run);
+  }, [phase, snapshot, puzzle.date, onComplete]);
 
   // Console / test hook: window.__elevation.debugPieces()
   useEffect(() => {
@@ -116,7 +135,22 @@ export default function BuildPhase() {
         {phase === "testing" ? (
           <>
             <p className={styles.disasterChip}>{snapshot.disasterLabel}</p>
-            <p className={styles.timer}>Surviving: {formatClock(snapshot.testSeconds)}</p>
+            <div className={styles.topRight}>
+              <div className={styles.speedControl} role="group" aria-label="Disaster speed">
+                {SIM_SPEEDS.map((speed) => (
+                  <button
+                    key={speed}
+                    type="button"
+                    className={styles.speedButton}
+                    aria-pressed={snapshot.speed === speed}
+                    onClick={() => session.setSpeed(speed)}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+              <p className={styles.timer}>Surviving: {formatClock(snapshot.testSeconds)}</p>
+            </div>
           </>
         ) : phase === "done" && outcome ? (
           <>
@@ -181,31 +215,29 @@ export default function BuildPhase() {
       {/* Fixed-height slot so the board doesn't move when the tray swaps for the meter. */}
       <div className={styles.bottom}>
       {phase === "done" && outcome && result ? (
-        <dl className={styles.summary}>
-          <div>
-            <dt>Height</dt>
-            <dd>
-              {result.heightM.toFixed(1)} m · {result.band}
-            </dd>
-          </div>
-          <div>
-            <dt>Stability</dt>
-            <dd>{outcome.stability.toFixed(1)} / 5</dd>
-          </div>
-          <div>
-            <dt>Combined score</dt>
-            <dd className={styles.combined}>{outcome.combined}</dd>
-          </div>
-        </dl>
+        <div className={styles.doneRow}>
+          <dl className={styles.summary}>
+            <div>
+              <dt>Height</dt>
+              <dd>
+                {result.heightM.toFixed(1)} m · {result.band}
+              </dd>
+            </div>
+            <div>
+              <dt>Stability</dt>
+              <dd>{outcome.stability.toFixed(1)} / 5</dd>
+            </div>
+            <div>
+              <dt>Combined score</dt>
+              <dd className={styles.combined}>{outcome.combined}</dd>
+            </div>
+          </dl>
+          <Button onClick={onContinue}>See Results →</Button>
+        </div>
       ) : testing ? (
         <StabilityMeter integrity={snapshot.integrity} />
       ) : (
-        <PieceTray
-          pieces={pieces}
-          outline={(materialId) => session.outline(materialId)}
-          enabled={phase === "build"}
-          onPickUp={pickUpFromTray}
-        />
+        <PieceTray pieces={pieces} enabled={phase === "build"} onPickUp={pickUpFromTray} />
       )}
       </div>
 

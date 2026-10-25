@@ -1,5 +1,5 @@
-// Row types for the Supabase schema (planning doc §7). Phase 5 adds the client
-// (src/lib/supabase/client.ts) and the SQL migration (supabase/migrations/).
+// Row types for the Supabase schema (planning doc §7). The client is
+// src/lib/supabase/client.ts and the SQL is supabase/migrations/0001_init.sql.
 
 export type DisasterType = "wind" | "earthquake" | "flood" | "meteor";
 

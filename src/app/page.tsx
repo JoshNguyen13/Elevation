@@ -1,10 +1,10 @@
-import BuildPhase from "@/components/game/BuildPhase";
+import Game from "@/components/game/Game";
 import styles from "./page.module.css";
 
 export default function Home() {
   return (
     <main className={styles.main}>
-      <BuildPhase />
+      <Game />
     </main>
   );
 }

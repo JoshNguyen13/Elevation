@@ -13,11 +13,12 @@
 
 **Elevation** is a 2D, browser-based daily puzzle game. Every player gets the same 10 pieces and two minutes to stack them as high and stable as they can, then the tower is hit by that day's natural disaster. Score = height + survival time, shown as a percentile against everyone who played today (Wordle × Tricky Towers × Krillion results).
 
-**Current phase: Phase 4 — Disasters. ✅ Complete.** All four disasters (wind, earthquake, flood, meteor) run end to end, with collapse detection, the stability score and the combined score.
+**Current phase: Phase 5 — Daily system + leaderboard. ✅ Complete (code).** The whole loop is in: today's puzzle (a pure function of the date) → intro → build → disaster test → results with percentile, leaderboard and a display name. It runs fully offline. **The Supabase project is not created yet**, so the shared leaderboard and percentile are untested against a real database. To switch them on: create a project, run `supabase/migrations/0001_init.sql`, and set the two `NEXT_PUBLIC_SUPABASE_*` vars (§7).
 **Next:**
+- **Everyone:** create the Supabase project and verify against it (§7). Only a mock PostgREST server has been tested.
 - **Track A:** tune disaster magnitudes by playtesting. Every number in `src/lib/physics/disasters.ts` is a first pass.
-- **Track C:** Phase 5, the daily seed that picks the materials, the disaster and `seed`.
-- **Track B:** the real "04 — Results" screen, from `outcome` + `result` in the snapshot.
+- **Track B (Phase 7):** tutorial / "How to Play", juice, polish of the Intro and Results screens.
+- **Track D (Phase 6):** the materials library. The daily puzzle already draws from `MATERIALS_POOL`, so new items appear automatically.
 
 Read "Build-phase rules" in §4 first.
 
@@ -29,7 +30,7 @@ Read "Build-phase rules" in §4 first.
 | **2 — Core physics** ✅ | Matter.js body per shape, freeze-on-placement rule (§4.3), friction-only materials, pickup/reposition (§4.4) | Single computer |
 | **3 — Build → Test transition** ✅ | 2-min build timer, structure lock, settling window, height measurement + banding (§5.1) | Single computer, **then split into 4 tracks** |
 | **4 — Disasters** ✅ | One disaster end to end first (wind), escalation + stability score, then the others | Track A |
-| 5 — Daily system + leaderboard | Supabase schema, device ID + display name, date seed → materials + disaster, percentile query | Track C |
+| **5 — Daily system + leaderboard** ✅ | Supabase schema, device ID + display name, date seed → materials + disaster, percentile query | Track C |
 | 6 — Materials library | Offline SerpAPI + Gemini pipeline that grows the real-world-object library | Track D |
 | 7 — Polish & pitch | Tutorial, results screen, juice (sound, shake, particles), pitch deck | Track B + all |
 
@@ -98,7 +99,7 @@ interface Material {
 
 Center of mass = geometric centroid (Matter.js does this automatically for polygon bodies).
 
-### 3.2 Supabase schema (§7). Types in `src/lib/supabase/types.ts`, SQL not written yet (Phase 5)
+### 3.2 Supabase schema (§7). Types in `src/lib/supabase/types.ts`, SQL in `supabase/migrations/0001_init.sql` (not yet applied to a project)
 - **players**: `id uuid PK (= device ID)`, `display_name text null`, `created_at`
 - **scores**: `id`, `player_id FK → players.id`, `date`, `height_score`, `stability_score`, `combined_score`, `created_at`. **unique (player_id, date)** enforces one attempt per day
 - **daily_puzzle**: `date PK`, `seed`, `item_ids jsonb` (→ Material ids), `disaster_type`
@@ -188,7 +189,7 @@ Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, 
 - **Fallen pieces.** A dynamic piece that leaves the board entirely (below the bottom, or past either side; there are no walls) is removed and **returned to the tray**. This is a placeholder for §4.8 despawn and §4.5 forgiveness, still open in §8.
 - **Last piece.** When a drop puts the 10th piece on the board, it's placed **dynamic, not frozen**, since no "next placement" will ever release it. The previous frozen piece unfreezes as usual, so nothing is frozen. Picking a piece back up and re-dropping it follows the same rule.
 - **Newest piece** is drawn in the accent blue, as in Figma. It's the frozen piece, and the Q/E target after placing.
-- **Daily set.** Placeholder `square, triangle, pentagon, …` (10 pieces, mirrors the Figma tray) until the Phase 5 seed exists.
+- **Daily set.** `BuildSession` takes `{ materialIds, disaster, seed }` from today's `DailyPuzzle` (see "Daily system" below). The old placeholder cycle is only the default for tests.
 - **Piece scale.** `session.pxPerMeter = pieceScale(materialIds)`. Every piece outline comes from `session.outline(materialId)`, which covers bodies, drawing, the drag ghost and tray icons. There's no module-level outline cache any more.
 - **Phases.** `phase` moves `"build"` → `"settling"` → `"measured"`, all in the snapshot.
   - **Build.** A 120s countdown, in `secondsLeft`. It emits once per displayed second and calls `endBuild()` at 0.
@@ -211,7 +212,11 @@ Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, 
   - **Forces.** Each fixed physics step calls `disaster.apply()` before `world.step()`. The test clock (`testMs`) counts **fixed steps**, so a disaster plays out identically for the same tower and seed.
   - **Ending.** When the tower collapses or the clock reaches `MAX_TEST_DURATION_S`, `outcome: TestResult` is set (`survivedS`, `collapsed`, `stability`, `combined`). Forces then stop, but physics keeps running.
   - **Snapshot:** `disaster`, `disasterName`, `disasterLabel`, `testSeconds`, `integrity` (the fraction of the tower not fallen), `outcome`.
-  - **Choosing the disaster.** Pass `new BuildSession({ disaster, seed })`. Until Phase 5, `BuildPhase` uses `wind`, or `?disaster=wind|earthquake|flood|meteor` from the URL. `seed` drives `seededRandom()` (wind/flood direction, meteor spots).
+  - **Choosing the disaster.** Pass `new BuildSession({ materialIds, disaster, seed })`. `seed` drives `seededRandom()` (wind/flood direction, meteor spots). `Game` fills all three from today's puzzle.
+  - **Playback speed** (1x / 2x / 4x, a segmented control in the testing top bar).
+    - `session.setSpeed()` makes `step()` feed the physics backlog `dt × speed` (backlog cap scales too), so more fixed steps run per frame.
+    - The step size never changes, and collapse / end-of-test is checked **after every fixed step**. The disaster and the recorded survival time are therefore identical at every speed. This was checked: the same tower scored 54.6s, combined 41 at 1x, 2x and 4x, in 54s / 27s / 14s of real time.
+    - Speed only applies during `"testing"` and resets to 1x when the test ends, so the aftermath plays normally.
   - **Meteors** are extra Matter bodies (`world.addMeteor`), drawn grey. They're never pieces and are removed once off the board or after 6s.
 - **Testing UI** (Figma "03 — Testing Phase").
   - **Top bar:** a black pill disaster chip, plus `Surviving: mm:ss`.
@@ -219,6 +224,32 @@ Drag and drop from the tray onto the canvas · **Q** rotates counter-clockwise, 
   - **At the end:** the top bar shows `Collapsed at mm:ss` / `Survived mm:ss!` with the disaster name, and the bottom shows Height · Stability · Combined score.
   - **Flood water** is drawn as a translucent accent band.
   - The top bar, bottom slot and hint have fixed heights, so **the board never moves between phases**.
+- **Daily system (§6, §7; `src/lib/daily/`).**
+  - **Flow.** `Game.tsx` runs the screens: intro → play → results.
+    - On load it computes the UTC date, gets the device ID, and loads the day's puzzle.
+    - If this device already played today, it goes straight to results.
+  - **Rollover** is **midnight UTC** (`date.ts`). Day #1 is `LAUNCH_DATE` (2026-10-24).
+  - **The puzzle** (`puzzle.ts`) is a pure function of the date.
+    - `generatePuzzle(date)` hashes `elevation:<date>` (FNV-1a) into a seed. It draws the 10 materials from `MATERIALS_POOL` out of a reshuffled bag (so the set is varied), then picks the disaster.
+    - The first visitor stores it in `daily_puzzle`, and everyone after reads that row. So **growing the library mid-day can't change the day's set**. A stored row with unknown material ids is ignored.
+  - **Identity** (`storage.ts`): a device UUID in localStorage, used as `players.id`.
+  - **One attempt per day:**
+    - Enforced locally by the saved run (`elevation:run:<date>`).
+    - Enforced on the server by `unique (player_id, date)`; a duplicate insert counts as success.
+    - If the submit fails (offline), the run is flagged unsubmitted and retried next visit.
+  - **Scores stored:** `height_score` = % of max height, `stability_score` 0–5, `combined_score` 0–100.
+  - **Percentile** (`api.ts → fetchStanding`):
+    - "You beat X%" = scores strictly below yours ÷ other players. It's null for the first player.
+    - Rank = scores strictly above + 1.
+  - **Leaderboard:** top 5, with a "View Full Leaderboard" toggle to the top 25. Your own row is appended at its real rank if it's below the cut. Unnamed players show as `Anonymous XXXX`.
+  - **Display name:** an inline form on the results screen, cleaned to letters, numbers, space, `_` and `-`, at most 24 characters. It's saved to `players.display_name` and localStorage.
+  - **Offline mode** (no `NEXT_PUBLIC_SUPABASE_*`):
+    - The game fully works, with a local device ID and save.
+    - The results show only your own score, with "The shared leaderboard is offline". Nothing is faked.
+  - **Dev-only switches** (disabled in production builds):
+    - `?replay=1`: unsubmitted practice rounds.
+    - `?disaster=flood`: forces a disaster.
+    - `window.__elevation` (the session).
 - **Rendering.** Custom canvas draw (`src/lib/game/draw.ts`), not `Matter.Render`. The held piece is drawn on the canvas when the pointer is over the board, and as a fixed-position SVG ghost when it's off the board.
 
 ---
@@ -265,15 +296,19 @@ Elevation/
 ├── public/                     ← static assets (piece icons will go here)
 ├── scripts/                    ← Phase 6: offline SerpAPI + Gemini materials pipeline (Track D). Never imported by the app
 ├── supabase/
-│   └── migrations/             ← Phase 5: SQL for players / scores / daily_puzzle (Track C)
+│   └── migrations/             ← 0001_init.sql: players / scores / daily_puzzle + row-level-security policies (Track C)
 └── src/
     ├── app/                    ← Next.js App Router
     │   ├── layout.tsx          ← root layout, Space Grotesk font
     │   ├── globals.css         ← design tokens (CSS vars) + reset
-    │   ├── page.tsx            ← current: renders the Build Phase screen
+    │   ├── page.tsx            ← renders <Game />
     │   └── page.module.css
     ├── components/
+    │   ├── ui/                          ← Button (Primary / Secondary / Disabled), Badge (Neutral)
     │   └── game/                        ← each .tsx has a sibling .module.css
+    │       ├── Game.tsx                 ← orchestrator: loads today's puzzle + device, switches intro / play / results, saves + submits the run
+    │       ├── IntroScreen.tsx          ← 00 — Daily Intro: today's materials, Start Building
+    │       ├── ResultsScreen.tsx        ← 04 — Results: score cards, percentile, leaderboard, name form, share, countdown
     │       ├── BuildPhase.tsx           ← 02 Build → 03 Testing screen: owns the BuildSession, pointer + Q/E/Esc input, layout per phase
     │       ├── StabilityMeter.tsx       ← 03 — Testing Phase meter (share of the tower still standing)
     │       ├── BoardCanvas.tsx          ← the 400×560 board canvas (HiDPI) + the game loop (step physics, draw)
@@ -292,11 +327,18 @@ Elevation/
         │   ├── dailyScale.ts            ← per-day piece scale + MAX_STACK_PX (100% height)
         │   ├── scoring.ts               ← HEIGHT_BANDS, bandFor(), HeightResult, TestResult, stabilityScore(), combinedScore()
         │   └── draw.ts                  ← custom canvas renderer (platform, pieces, meteors, water, height line)
+        ├── daily/                       ← Phase 5 (Track C)
+        │   ├── date.ts                  ← UTC date, rollover countdown, Day #N
+        │   ├── puzzle.ts                ← generatePuzzle(date), stored-row conversion
+        │   ├── run.ts                   ← RunSummary: a finished run, from a session or a score row
+        │   ├── storage.ts               ← device ID, saved run, display name (localStorage)
+        │   └── api.ts                   ← Supabase calls: puzzle, players, scores, standing, leaderboard (offline-safe)
         ├── physics/
         │   ├── constants.ts             ← PX_PER_METER, platform, gravity, step + solver settings, timings, collapse rule
         │   ├── disasters.ts             ← wind / earthquake / flood / meteor force models, seededRandom()
         │   └── world.ts                 ← PhysicsWorld: Matter engine + platform + piece and meteor bodies (no game rules)
         └── supabase/
+            ├── client.ts                ← getSupabase(): null when the env vars are unset (offline mode)
             └── types.ts                 ← row types for players / scores / daily_puzzle
 ```
 
@@ -326,10 +368,11 @@ npm run lint
 npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first so Next generates its route types (e.g. LayoutProps)
 ```
 
-**What you should see (Phase 4):** the Figma "02 — Build Phase" screen at 1440×900.
+**What you should see (Phase 5):** the Figma "00 — Daily Intro" screen first ("Today's Stack", 10 materials, Start Building). After a run, "04 — Results" with the score cards, the percentile, the leaderboard and a name box. Reloading after playing goes straight to results. In dev, add `?replay=1` to play again.
+- The rest is the "02 — Build Phase" and "03 — Testing Phase" screens at 1440×900:
 - After the height is shown (2s), the screen becomes "03 — Testing Phase": a disaster chip, `Surviving: mm:ss`, and the Stability meter where the tray was.
 - The disaster runs until half the tower has fallen or 75s pass. Then the score line appears: Height · Stability / 5 · Combined.
-- The disaster defaults to wind. Try the others with `http://localhost:3000/?disaster=earthquake` (or `flood`, `meteor`).
+- The disaster comes from today's puzzle. In dev, force one with `http://localhost:3000/?disaster=earthquake` (or `wind`, `flood`, `meteor`).
 - **Top bar:** a live "Build Time" countdown and a live "Pieces Left: N / 10".
 - **Board:** the Height Ruler (band ticks at their real heights), the 400×560 board with the grey platform, and the 10-piece tray.
 - **When the timer hits 0** (or you run `window.__elevation.endBuild()` in the dev console):
@@ -344,17 +387,25 @@ npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first 
 **Stack versions:** Next.js 16.4 (App Router, Turbopack, `cacheComponents` on), React 19.3, TypeScript 5, Matter.js 0.20.
 ⚠ Next 16 has breaking changes from older Next versions. Check `node_modules/next/dist/docs/` before relying on remembered APIs (see `AGENTS.md`).
 
-**Environment variables.** Copy `.env.example` to `.env.local`. **None are needed for Phase 0–4.** Never commit real values. Never paste them here.
+**Environment variables.** Copy `.env.example` to `.env.local`. **None are needed to run the game.** Without the Supabase pair it runs offline. Never commit real values. Never paste them here.
 | Var | Needed from | Where to get it | Where it lives |
 |---|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Phase 5 | Supabase dashboard → Project Settings → API | `.env.local` + Vercel project env vars |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Phase 5 | same page (anon/public key) | `.env.local` + Vercel project env vars |
+| `NEXT_PUBLIC_SUPABASE_URL` | Phase 5 (optional: enables the shared leaderboard) | Supabase dashboard → Project Settings → API | `.env.local` + Vercel project env vars |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Phase 5 (optional) | same page (anon/public key) | `.env.local` + Vercel project env vars |
 | `SERPAPI_API_KEY` | Phase 6 (offline script only) | serpapi.com → Dashboard | the local `.env.local` of whoever runs the script. **Not** on Vercel |
 | `GEMINI_API_KEY` | Phase 6 (offline script only) | aistudio.google.com → Get API key | the local `.env.local` of whoever runs the script. **Not** on Vercel |
 
 The SerpAPI and Gemini keys must never get a `NEXT_PUBLIC_` prefix and must never be imported from `src/`, because the deployed game must not call those APIs.
 
-**Deploying:** import the repo in Vercel. The defaults (framework: Next.js, `npm run build`) work as is. Add the Supabase env vars in Project Settings once Phase 5 lands.
+**Deploying:** import the repo in Vercel. The defaults (framework: Next.js, `npm run build`) work as is. Add the two Supabase env vars in Project Settings (`NEXT_PUBLIC_` values are inlined at build time, so redeploy after changing them).
+
+**Setting up Supabase (one time):**
+1. Create a project at supabase.com.
+2. Open the SQL editor and run `supabase/migrations/0001_init.sql`.
+3. Copy the project URL and anon key into `.env.local` and Vercel, then restart `npm run dev`.
+4. Play a run. A row should appear in `scores`. The results should say "You beat X%" instead of "offline".
+
+⚠ There's no auth, so the row-level-security policies are open to the anon role. Anyone with the anon key can write any row, including renaming other players. That's the accepted §7 limitation. Don't store anything sensitive.
 
 ---
 
@@ -380,12 +431,12 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [ ] Stability-score curve: linear vs stepped vs intensity-weighted (§5.2)
   - [ ] Exact height + stability combination formula (§5.3)
 - **Daily system**
-  - [ ] Daily rollover time: midnight UTC vs local (§6)
+  - [x] ~~Daily rollover time~~ **Midnight UTC** (`src/lib/daily/date.ts`). Everyone shares the same puzzle clock; for US Central that's 7pm. Say so if you want a fixed US-time rollover instead.
 - **Accounts**
-  - [ ] When the display-name prompt appears: onboarding vs first results screen (§7)
+  - [x] ~~When the display-name prompt appears~~ **On the results screen**, as an inline box in the leaderboard card. Editable only until set (no rename UI yet).
   - [ ] Device-ID spoofing lets a player replay a day. **Accepted hackathon limitation**, do not harden (§7)
 - **UI/UX**
-  - [ ] Full results-screen content and share/percentile layout (§8)
+  - [ ] Full results-screen content and share/percentile layout (§8). A first version is built from Figma 04 (see Phase 5 notes)
   - [ ] Tutorial: forced on first play vs always skippable with a reminder (§8)
 - **Mobile**
   - [ ] Touch control scheme, especially rotation (§2.2)
@@ -427,6 +478,39 @@ Newest first. One entry per work session: **date · who · phase · what changed
 - Decisions:
 - Next / blockers:
 -->
+
+### 2026-10-24 · Joshua (+ Claude Code) · Phase 5
+- **Changed**
+  - **Daily system** in `src/lib/daily/`: UTC date and rollover, the pure-function puzzle, device ID and saved run, and offline-safe Supabase calls.
+  - **Supabase** (`@supabase/supabase-js` added): `client.ts` returns null when the env vars are unset. `0001_init.sql` holds the tables, a unique `(player_id, date)`, an index, and open RLS policies.
+  - **Screens:** `Game` orchestrates the new `IntroScreen` (Figma 00) and `ResultsScreen` (Figma 04) around `BuildPhase`.
+    - `BuildPhase` now takes the puzzle and reports the finished run.
+    - It gained a "See Results →" button.
+    - New shared `Button` and `Badge`.
+  - **Smaller changes:**
+    - `iconOutline` moved to `lib/game/icon.ts`.
+    - `DISASTER_NAMES` was added.
+    - The `?disaster=` override is now dev-only.
+- **Decisions**
+  - Rollover at midnight UTC.
+  - The first visitor stores the day's puzzle in `daily_puzzle`, so a library change can't alter it mid-day.
+  - The display-name box lives on the results screen.
+  - Supabase is optional, with an honest offline mode.
+  - Only a finished run counts. Reloading mid-run gives a fresh attempt (no forfeit).
+  - Left out for now: the Tutorial / "How to Play" link (Phase 7) and a separate full-leaderboard page (an inline top-25 toggle instead).
+- **Verified** (headless Chrome over CDP, no console errors)
+  - **Offline:** intro (10 materials, Day #2) → build → Start Early → disaster → results → name saved ("Tower Tina!" cleaned to "Tower Tina") → reload lands on results with the name.
+  - **Against a mock PostgREST server I wrote** (not a real Supabase):
+    - A stored puzzle row beats the generated one (the intro showed its 10 pentagons).
+    - The player row was registered, and the score was inserted as `{height 17.7, stability 3.61, combined 45}`.
+    - Percentile was "beat 38%", which matches 3 of 8 other players below. Rank was #6, with the own row appended under the top 5 and highlighted.
+    - The rename PATCHed `players`.
+    - The top-25 toggle worked.
+    - "3 people played yesterday" showed.
+    - A reload went straight to results.
+  - tsc, lint and a production build pass. The build contains no mock URL.
+- **Not verified:** a real Supabase project, real RLS behaviour, concurrent first-visitors storing the puzzle, and a score submit after a network failure.
+- **Next / blockers:** create the Supabase project (§7) and rerun the flow against it. Tune disasters (Track A). Tutorial + polish (Track B).
 
 ### 2026-10-24 · Joshua (+ Claude Code) · Phase 4
 - **Changed**

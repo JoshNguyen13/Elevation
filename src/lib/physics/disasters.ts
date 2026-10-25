@@ -10,6 +10,13 @@ import type { PhysicsWorld } from "./world";
 
 export const DISASTER_TYPES: readonly DisasterType[] = ["wind", "earthquake", "flood", "meteor"];
 
+export const DISASTER_NAMES: Record<DisasterType, string> = {
+  wind: "High Wind",
+  earthquake: "Earthquake",
+  flood: "Flood",
+  meteor: "Meteor Shower",
+};
+
 export interface DisasterStep {
   world: PhysicsWorld;
   // Uids of the pieces still in the world.
@@ -52,7 +59,7 @@ const WIND = {
 function createWind(direction: 1 | -1): Disaster {
   return {
     type: "wind",
-    name: "High Wind",
+    name: DISASTER_NAMES.wind,
     label: "⚠ High Wind — Intensifying",
     apply({ world, pieceUids, t }) {
       const intensity = WIND.base + WIND.perSecond * t;
@@ -81,7 +88,7 @@ function createEarthquake(): Disaster {
   let phase = 0;
   return {
     type: "earthquake",
-    name: "Earthquake",
+    name: DISASTER_NAMES.earthquake,
     label: "⚠ Earthquake — Intensifying",
     apply({ world, pieceUids, t, dt }) {
       phase += 2 * Math.PI * (QUAKE.baseHz + QUAKE.hzPerSecond * t) * dt;
@@ -112,7 +119,7 @@ function createFlood(direction: 1 | -1): Disaster {
   let waterY = PLATFORM_RECT.y + FLOOD.startBelowPlatformPx;
   return {
     type: "flood",
-    name: "Flood",
+    name: DISASTER_NAMES.flood,
     label: "⚠ Flood — Water Rising",
     apply({ world, pieceUids, t }) {
       waterY = PLATFORM_RECT.y + FLOOD.startBelowPlatformPx - (FLOOD.riseSpeed * t + 0.5 * FLOOD.riseAccel * t * t);
@@ -161,7 +168,7 @@ function createMeteor(rng: () => number): Disaster {
   const live: { uid: string; bornAt: number }[] = [];
   return {
     type: "meteor",
-    name: "Meteor Shower",
+    name: DISASTER_NAMES.meteor,
     label: "⚠ Meteor Shower — Intensifying",
     apply({ world, pieceUids, t }) {
       for (let i = live.length - 1; i >= 0; i--) {
