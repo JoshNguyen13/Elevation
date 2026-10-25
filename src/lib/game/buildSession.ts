@@ -113,7 +113,8 @@ export type JuiceEvent =
   | { kind: "rotate" }
   | { kind: "fallen"; x: number; y: number }
   | { kind: "tick"; secondsLeft: number }
-  | { kind: "phase"; phase: Phase; collapsed?: boolean }
+  // `disaster` is set when the test starts, so sound can loop that disaster's ambience.
+  | { kind: "phase"; phase: Phase; collapsed?: boolean; disaster?: DisasterType }
   // A moment a disaster wants heard or seen (DisasterCue), raised from Disaster.apply.
   | { kind: "disaster"; cue: DisasterCue; x?: number; y?: number; strength: number };
 
@@ -673,7 +674,7 @@ export class BuildSession {
       // Nothing standing to test: the run ends with zero survival.
       if (this.towerUids.length === 0) return this.finishTest(true);
       this.phase = "testing";
-      this.juice({ kind: "phase", phase: "testing" });
+      this.juice({ kind: "phase", phase: "testing", disaster: this.disaster.type });
       this.emit();
     } else if (this.phase === "testing") {
       if (Math.floor(this.testMs / 1000) !== this.snapshot.testSeconds) this.emit();

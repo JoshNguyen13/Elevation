@@ -9,6 +9,10 @@ Newest first. One entry per session or PR: date · who · branch · what changed
 - Open:
 -->
 
+## 2026-10-25 · Preston (sound, drafted for physics) · physics/juice-phase-disaster
+- Changed: contract PR. The `phase` `JuiceEvent` gets an optional `disaster?: DisasterType`, set on the `testing` event, so sound can start that disaster's ambience loop. No behavior change; the disasters track can ignore the field.
+- Open: none.
+
 ## 2026-10-25 · Matthew (+ Claude Code) · physics/feel-and-stability (goal 1: gravity)
 - Changed:
   - **Gravity is per day now**: `GRAVITY_G` (2.5 g) × `STANDARD_GRAVITY` × the day's `pxPerMeter`, clamped to `MIN_GRAVITY_PX_S2`–`MAX_GRAVITY_PX_S2` (500–1000 px/s²). This is `dayGravity()` in `dailyScale.ts`; `GRAVITY_Y` is gone. `PhysicsWorld` takes the gravity in its constructor, and `BuildSession` creates the world after the scale is known. The methods disasters call are unchanged.
