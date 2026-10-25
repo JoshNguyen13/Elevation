@@ -22,6 +22,13 @@ Landings and hits are `impact` events with `meteor: true` (every disaster body's
 - Open:
 -->
 
+## 2026-10-25 · Josh (integrator) · main (letters: wind and tornado only)
+- Changed: `doomLetters.ts`. The page text now moves only for wind (flutter, gusts, blown away at the start) and the tornado (orbit).
+  - Earthquake, fat guy and cat leave the letters still.
+  - Meteor keeps its heat glow but no longer shimmers.
+  - Removed the cat's `batted` helper and the swat lookup. `LetterPulses` still carries `hop`, `sway` and `swats`, now unused by the letters.
+- Open: the backdrop scenery for those disasters is unchanged. If the letter effects come back, put them behind an option rather than re-adding them per disaster.
+
 ## 2026-10-25 · Josh (integrator) · main (earthquake difficulty)
 - Changed (`disasters/earthquake.ts`, on top of the surges): the earthquake now shakes up and down as well as sideways, and grows for real.
   - **Vertical:** `gy` at 1.618× the sideways rate (an uneven loop that never repeats), starting at 0.1 g, +0.012 g/s, capped at 0.8 g so pieces never launch. `visualShake` uses both axes.
