@@ -130,9 +130,21 @@ export default function BuildPhase() {
         ) : (
           <>
             <p className={styles.timer}>{statusText(snapshot)}</p>
-            <p className={styles.piecesLeft}>
-              Pieces Left: {piecesLeft} / {pieces.length}
-            </p>
+            <div className={styles.topRight}>
+              <p className={styles.piecesLeft}>
+                Pieces Left: {piecesLeft} / {pieces.length}
+              </p>
+              {phase === "build" && (
+                <button
+                  type="button"
+                  className={styles.startButton}
+                  disabled={!pieces.some((p) => p.status === "placed")}
+                  onClick={() => session.endBuild()}
+                >
+                  Start Early
+                </button>
+              )}
+            </div>
           </>
         )}
       </header>

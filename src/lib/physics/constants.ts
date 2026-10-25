@@ -48,5 +48,9 @@ export const MAX_TEST_DURATION_S = 75; // TBD §4.11 — suggested 60–90s
 export const COLLAPSE_FALLEN_FRACTION = 0.5;
 // A piece "touches the ground" within this many px of the platform top (§4.7).
 export const GROUND_TOLERANCE_PX = 2;
-export const ROTATION_STEP_DEG = 15; // TBD §2.2
+export const ROTATION_STEP_DEG = 1; // TBD §2.2 — fine steps; holding Q/E repeats
+
+// Matter uses the higher frictionStatic of two touching bodies, so this sets how
+// hard resting pieces are to nudge off each other, whatever their kinetic friction.
+export const FRICTION_STATIC = 2;
 export const DAILY_PIECE_COUNT = 10; // §3.3

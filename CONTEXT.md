@@ -92,9 +92,9 @@ interface Material {
 **Prototype shapes (§3.1). Numbers are TBD placeholders.**
 | id | Shape (m) | Mass | Friction | Design intent |
 |---|---|---|---|---|
-| square | box 1.8 × 1.8 | 2 | 0.5 | medium / medium / medium |
-| triangle | 3-gon, r = 0.85 | 1 | 0.5 | low mass, small–medium |
-| pentagon | 5-gon, r = 1.1 | 3.5 | 0.7 | high mass, medium–large, med-high friction |
+| square | box 1.8 × 1.8 | 2 | 1 | medium / medium / medium |
+| triangle | 3-gon, r = 0.85 | 1 | 1 | low mass, small–medium |
+| pentagon | 5-gon, r = 1.1 | 3.5 | 1.3 | high mass, medium–large, med-high friction |
 
 Center of mass = geometric centroid (Matter.js does this automatically for polygon bodies).
 
@@ -132,9 +132,10 @@ All constants live in **`src/lib/physics/constants.ts`**. Change them there and 
 | `BUILD_DURATION_S` | 120 | §2.1 |
 | `SETTLE_DURATION_S` | 1.5 | TBD (§4.6) |
 | `MAX_TEST_DURATION_S` | 75 | TBD (§4.11). Suggested range 60–90 |
-| `ROTATION_STEP_DEG` | 15 | TBD (§2.2) |
+| `ROTATION_STEP_DEG` | 1 | TBD (§2.2). Fine steps; holding Q/E auto-repeats |
+| `FRICTION_STATIC` | 2 | Matter takes the higher `frictionStatic` of two touching bodies, so resting pieces are hard to push off each other |
 | `DAILY_PIECE_COUNT` | 10 | §3.3 |
-| Per-material friction | 0.5 / 0.5 / 0.7 | TBD (§3.1). See table in 3.1 |
+| Per-material friction | 1 / 1 / 1.3 (square / triangle / pentagon) | TBD (§3.1). Raised from 0.5 / 0.5 / 0.7 so pieces grip. Matter allows values above 1. The table in 3.1 shows the old numbers |
 | `HEIGHT_REVEAL_S` | 2 | Pause on the measured height before the disaster starts |
 | `COLLAPSE_FALLEN_FRACTION` | 0.5 | TBD (§4.7). The test ends as "collapsed" once half the measured tower's pieces have fallen |
 | `GROUND_TOLERANCE_PX` | 2 | A piece "touches the ground" within 2px of the platform top |
@@ -335,7 +336,7 @@ npx tsc --noEmit   # typecheck. Run `npm run build` or `npm run dev` once first 
   - the tray locks and the top bar shows "Settling…";
   - about 1.5s later it shows the height and band, the band lights up on the ruler, and a dashed blue line marks the height.
 - Drag a tray piece onto the board. It **hangs where you drop it (blue, frozen)** until you place the next piece, then falls and stacks under gravity.
-- **Q/E** rotate 15° while holding, or rotate the frozen piece right after placing.
+- **Q/E** rotate 1° per press (hold to keep rotating) while holding, or rotate the frozen piece right after placing.
 - Drops that overlap another piece or the platform show grey and dashed, and the piece bounces back.
 - Grab any placed piece to move it, and whatever rested on it falls. Drag it off the board to return it to the tray. **Esc** cancels a drag.
 - Pieces that fall off the board return to the tray during the build. After the build they're lost.
@@ -367,7 +368,7 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [ ] Platform width and `PX_PER_METER` (§4.2). Currently 5.5m and 40, picked to match Figma
   - [ ] Disaster escalation formulas, and whether disasters target specific tower zones (§4.10)
   - [ ] Max test duration (§4.11). Currently 75s
-  - [ ] Rotation increment per Q/E press (§2.2). Currently 15°
+  - [ ] Rotation increment per Q/E press (§2.2). Currently 1°, relying on the browser's key repeat (it has a short initial delay). A custom repeat loop would feel smoother and could accelerate.
 - **Materials**
   - [ ] Numeric mass/size/friction for the 3 prototype shapes (§3.1). Placeholders in `materials.ts`
   - [ ] Breaking/health system and structural-reinforcement bonus (§3.5). Stretch goal
@@ -405,7 +406,7 @@ Resolved and removed: backend provider, identity model, deployment target, visua
   - [x] ~~How "max possible height" fits a fixed board~~ **Per-day scale**: the longest dimensions end to end fill 90% of the space above the platform (§3.3).
   - [ ] Pieces now draw at ~56% of their Phase 2 size with the placeholder set (a square is ~40px, down from 72), because longest-dimension fitting is conservative. Playtest whether they feel too small.
   - [ ] The build timer pauses while the tab is hidden, since it shares the physics clock. Decide whether a daily competitive run needs wall-clock time instead.
-  - [ ] Should there be a "Done building" button to end early? `endBuild()` already supports it. It's not in Figma.
+  - [x] ~~"Done building" button~~ Added as **Start Early** in the build top bar (not in Figma; styled like the Primary / Disabled Button). It calls `endBuild()` and is disabled until at least one piece is placed.
   - [ ] Height counts every placed piece still on the board, including one dangling off the platform edge. Revisit along with §4.7 / §4.8.
 - **Raised during Phase 4**
   - [ ] **Disaster strength.** A bare 4-square column (7.2 m, Mound) collapses in about 4s (meteor), 10s (wind, earthquake) and 17s (flood). That's harsh on a naive tower; playtest with real builds before tuning. A flat pile with nothing elevated survives the full 75s (stability 5.0), which may be too generous.

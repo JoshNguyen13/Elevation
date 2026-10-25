@@ -19,7 +19,7 @@ export interface Material {
   shape: PhysicsShape;
   // Relative mass; Matter.js derives inertia from it plus the shape (§4.9).
   mass: number;
-  // 0–1, Matter.js friction. The only surface property that varies (§4.9).
+  // Matter.js friction; ~0.5 is slippery, 1+ grips hard. The only surface property that varies (§4.9).
   // Restitution is not a field: it is fixed at 0 for every material (§3.2).
   friction: number;
   archetype?: Archetype;
@@ -36,7 +36,7 @@ export const BASIC_SHAPES: Material[] = [
     source: "basic",
     shape: { kind: "box", width: 1.8, height: 1.8 },
     mass: 2,
-    friction: 0.5,
+    friction: 1,
     archetype: "wide-stable",
   },
   {
@@ -45,7 +45,7 @@ export const BASIC_SHAPES: Material[] = [
     source: "basic",
     shape: { kind: "regularPolygon", sides: 3, radius: 0.85 },
     mass: 1,
-    friction: 0.5,
+    friction: 1,
     archetype: "irregular",
   },
   {
@@ -54,7 +54,7 @@ export const BASIC_SHAPES: Material[] = [
     source: "basic",
     shape: { kind: "regularPolygon", sides: 5, radius: 1.1 },
     mass: 3.5,
-    friction: 0.7,
+    friction: 1.3,
     archetype: "wide-stable",
   },
 ];

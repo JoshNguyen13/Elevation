@@ -26,6 +26,32 @@
   font-weight: 700;
 }
 
+.topRight {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Figma Button: Primary / Disabled, radius 8 (sized to the top bar's 36px). */
+.startButton {
+  height: 36px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-button);
+  background: var(--color-accent);
+  color: var(--color-background);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.startButton:disabled {
+  background: var(--color-fill-muted);
+  color: var(--color-text-subtle);
+  cursor: not-allowed;
+}
+
 .piecesLeft {
   font-size: 16px;
   font-weight: 500;

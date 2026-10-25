@@ -3,6 +3,7 @@ import type { Material } from "@/data/materials";
 import { PLATFORM_RECT } from "@/lib/game/board";
 import type { Vec } from "@/lib/game/geometry";
 import {
+  FRICTION_STATIC,
   GRAVITY_Y,
   PLATFORM_CORNER_RADIUS_PX,
   POSITION_ITERATIONS,
@@ -46,6 +47,7 @@ export class PhysicsWorld {
     const body = Matter.Bodies.fromVertices(pose.x, pose.y, [outline.map((v) => ({ ...v }))], {
       label: uid,
       friction: material.friction,
+      frictionStatic: FRICTION_STATIC,
       restitution: RESTITUTION,
     });
     // Mass before freezing: setStatic() stores mass/friction and restores them on unfreeze.
