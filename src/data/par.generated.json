@@ -28,30 +28,713 @@
       },
       {
         "slot": 4,
-        "x": 197,
-        "angleDeg": 0
+        "x": 169,
+        "angleDeg": 90
       },
       {
         "slot": 1,
-        "x": 178,
-        "angleDeg": 0
+        "x": 173,
+        "angleDeg": 90
       },
       {
         "slot": 8,
-        "x": 188,
+        "x": 179,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.2612877750709,
+      "heightM": 6.810034897100312,
+      "band": "Plateau",
+      "survivedS": 68.18333333333028,
+      "collapsed": true,
+      "combined": 67
+    },
+    "builds": 3066,
+    "solvedAt": "2026-10-26T20:19:07.007Z"
+  },
+  "2026-10-26": {
+    "itemIds": [
+      "ketchup-bottle",
+      "brick",
+      "elephant",
+      "couch",
+      "triangle",
+      "microwave-oven",
+      "soda-can",
+      "office-chair",
+      "piano",
+      "traffic-cone"
+    ],
+    "disaster": "wind",
+    "seed": 3182787829,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 2,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 3,
+        "x": 231,
+        "angleDeg": 270
+      },
+      {
+        "slot": 8,
+        "x": 232,
+        "angleDeg": 270
+      },
+      {
+        "slot": 4,
+        "x": 258,
+        "angleDeg": 270
+      },
+      {
+        "slot": 6,
+        "x": 281,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 62.88076324484844,
+      "heightM": 7.574033248539029,
+      "band": "Alps",
+      "survivedS": 10.466666666666644,
+      "collapsed": true,
+      "combined": 46
+    },
+    "builds": 3080,
+    "solvedAt": "2026-10-26T20:18:13.605Z"
+  },
+  "2026-10-27": {
+    "itemIds": [
+      "square",
+      "brick",
+      "couch",
+      "car-tire",
+      "fire-hydrant",
+      "soda-can",
+      "traffic-cone",
+      "piano",
+      "triangle",
+      "office-chair"
+    ],
+    "disaster": "fat-guy",
+    "seed": 3166010210,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 194,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 200,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 214,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 191,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 184,
         "angleDeg": 180
       }
     ],
     "outcome": {
-      "heightPercent": 56.47336808421798,
-      "heightM": 7.0876608937947925,
+      "heightPercent": 50.0245237486855,
+      "heightM": 5.415275646598515,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 68
+    },
+    "builds": 3696,
+    "solvedAt": "2026-10-26T20:18:56.637Z"
+  },
+  "2026-10-28": {
+    "itemIds": [
+      "square",
+      "triangle",
+      "couch",
+      "car-tire",
+      "bicycle",
+      "office-chair",
+      "microwave-oven",
+      "ketchup-bottle",
+      "tennis-ball",
+      "traffic-cone"
+    ],
+    "disaster": "cat",
+    "seed": 3216343067,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 2,
+        "x": 206,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 217,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 203,
+        "angleDeg": 90
+      },
+      {
+        "slot": 9,
+        "x": 225,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 243,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 200,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 169,
+        "angleDeg": 180
+      },
+      {
+        "slot": 1,
+        "x": 198,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 67.02478807259628,
+      "heightM": 7.182046286546793,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 79
+    },
+    "builds": 3451,
+    "solvedAt": "2026-10-26T20:19:24.786Z"
+  },
+  "2026-10-29": {
+    "itemIds": [
+      "fire-hydrant",
+      "car-tire",
+      "giraffe",
+      "refrigerator",
+      "ketchup-bottle",
+      "piano",
+      "bicycle",
+      "pentagon",
+      "office-chair",
+      "triangle"
+    ],
+    "disaster": "fat-guy",
+    "seed": 3199565448,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 2,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 162,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 210,
+        "angleDeg": 270
+      },
+      {
+        "slot": 8,
+        "x": 247,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 205,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 36.26217824738857,
+      "heightM": 5.588909359463183,
+      "band": "Mound",
+      "survivedS": 67.01666666666328,
+      "collapsed": true,
+      "combined": 46
+    },
+    "builds": 3808,
+    "solvedAt": "2026-10-26T20:18:44.173Z"
+  },
+  "2026-10-30": {
+    "itemIds": [
+      "elephant",
+      "ketchup-bottle",
+      "giraffe",
+      "traffic-cone",
+      "hardcover-book",
+      "fire-hydrant",
+      "bucket",
+      "square",
+      "watermelon",
+      "soda-can"
+    ],
+    "disaster": "earthquake",
+    "seed": 3518193114,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 214,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 214,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 220,
+        "angleDeg": 0
+      },
+      {
+        "slot": 1,
+        "x": 154,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 197,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 68.23795214610313,
+      "heightM": 9.421512170140128,
+      "band": "Alps",
+      "survivedS": 73.23333333333176,
+      "collapsed": true,
+      "combined": 79
+    },
+    "builds": 3136,
+    "solvedAt": "2026-10-26T20:18:57.625Z"
+  },
+  "2026-10-31": {
+    "itemIds": [
+      "soda-can",
+      "square",
+      "soccer-ball",
+      "tennis-ball",
+      "watermelon",
+      "car-tire",
+      "piano",
+      "refrigerator",
+      "microwave-oven",
+      "office-chair"
+    ],
+    "disaster": "wind",
+    "seed": 3534970733,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 1,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 248,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 247,
+        "angleDeg": 0
+      },
+      {
+        "slot": 0,
+        "x": 262,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 248,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 69.22152662580447,
+      "heightM": 5.821619976126915,
+      "band": "Alps",
+      "survivedS": 19.349999999999977,
+      "collapsed": true,
+      "combined": 54
+    },
+    "builds": 2520,
+    "solvedAt": "2026-10-26T20:18:03.372Z"
+  },
+  "2026-11-01": {
+    "itemIds": [
+      "giraffe",
+      "soda-can",
+      "square",
+      "watermelon",
+      "elephant",
+      "pentagon",
+      "piano",
+      "ketchup-bottle",
+      "office-chair",
+      "traffic-cone"
+    ],
+    "disaster": "wind",
+    "seed": 2863925223,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 226,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 216,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 202,
+        "angleDeg": 270
+      },
+      {
+        "slot": 9,
+        "x": 183,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 44.550501190956496,
+      "heightM": 7.59415268772538,
+      "band": "Plateau",
+      "survivedS": 68.93333333333051,
+      "collapsed": true,
+      "combined": 58
+    },
+    "builds": 2695,
+    "solvedAt": "2026-10-26T20:18:08.834Z"
+  },
+  "2026-11-02": {
+    "itemIds": [
+      "elephant",
+      "piano",
+      "office-chair",
+      "watermelon",
+      "tennis-ball",
+      "fire-hydrant",
+      "bicycle",
+      "refrigerator",
+      "pizza-box",
+      "triangle"
+    ],
+    "disaster": "fat-guy",
+    "seed": 2880702842,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 230,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 239,
+        "angleDeg": 270
+      }
+    ],
+    "outcome": {
+      "heightPercent": 41.42733951350932,
+      "heightM": 5.328346801239459,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 56
+    },
+    "builds": 3283,
+    "solvedAt": "2026-10-26T20:18:41.175Z"
+  },
+  "2026-11-03": {
+    "itemIds": [
+      "square",
+      "traffic-cone",
+      "couch",
+      "elephant",
+      "soda-can",
+      "giraffe",
+      "bicycle",
+      "hardcover-book",
+      "pentagon",
+      "soccer-ball"
+    ],
+    "disaster": "cat",
+    "seed": 2897480461,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 3,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 5,
+        "x": 221,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 213,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 199,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 185,
+        "angleDeg": 0
+      },
+      {
+        "slot": 1,
+        "x": 171,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 198,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 57.25848642965548,
+      "heightM": 10.459514077874566,
       "band": "Plateau",
       "survivedS": 75,
       "collapsed": false,
       "combined": 72
     },
-    "builds": 3206,
-    "solvedAt": "2026-10-25T16:17:24.829Z"
+    "builds": 3115,
+    "solvedAt": "2026-10-26T20:19:48.188Z"
+  },
+  "2026-11-04": {
+    "itemIds": [
+      "traffic-cone",
+      "ketchup-bottle",
+      "soda-can",
+      "piano",
+      "brick",
+      "car-tire",
+      "tennis-ball",
+      "square",
+      "pizza-box",
+      "refrigerator"
+    ],
+    "disaster": "meteor",
+    "seed": 2780037128,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 7,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 248,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 247,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 272,
+        "angleDeg": 270
+      },
+      {
+        "slot": 5,
+        "x": 249,
+        "angleDeg": 270
+      },
+      {
+        "slot": 4,
+        "x": 236,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 67.85506951018426,
+      "heightM": 5.172285612162223,
+      "band": "Alps",
+      "survivedS": 61.78333333333007,
+      "collapsed": true,
+      "combined": 73
+    },
+    "builds": 3409,
+    "solvedAt": "2026-10-26T20:18:54.959Z"
+  },
+  "2026-11-05": {
+    "itemIds": [
+      "refrigerator",
+      "bicycle",
+      "pizza-box",
+      "soda-can",
+      "car-tire",
+      "pentagon",
+      "ketchup-bottle",
+      "brick",
+      "traffic-cone",
+      "giraffe"
+    ],
+    "disaster": "fat-guy",
+    "seed": 2796814747,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 161,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 178,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 153,
+        "angleDeg": 270
+      },
+      {
+        "slot": 2,
+        "x": 166,
+        "angleDeg": 180
+      },
+      {
+        "slot": 4,
+        "x": 179,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 155,
+        "angleDeg": 0
+      },
+      {
+        "slot": 0,
+        "x": 190,
+        "angleDeg": 180
+      },
+      {
+        "slot": 1,
+        "x": 183,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.65620797831123,
+      "heightM": 6.481846270210852,
+      "band": "Plateau",
+      "survivedS": 42.26666666666624,
+      "collapsed": true,
+      "combined": 55
+    },
+    "builds": 3780,
+    "solvedAt": "2026-10-26T20:19:12.629Z"
+  },
+  "2026-11-06": {
+    "itemIds": [
+      "square",
+      "elephant",
+      "brick",
+      "bicycle",
+      "bucket",
+      "traffic-cone",
+      "giraffe",
+      "tennis-ball",
+      "fire-hydrant",
+      "triangle"
+    ],
+    "disaster": "earthquake",
+    "seed": 2813592366,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 1,
+        "x": 206,
+        "angleDeg": 270
+      },
+      {
+        "slot": 6,
+        "x": 204,
+        "angleDeg": 90
+      },
+      {
+        "slot": 9,
+        "x": 235,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 259,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 50.67698069317112,
+      "heightM": 8.324765998472818,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 68
+    },
+    "builds": 3178,
+    "solvedAt": "2026-10-26T20:20:33.130Z"
   },
   "2026-11-07": {
     "itemIds": [
@@ -91,25 +774,2672 @@
         "angleDeg": 0
       },
       {
+        "slot": 1,
+        "x": 172,
+        "angleDeg": 0
+      },
+      {
         "slot": 7,
-        "x": 210,
+        "x": 186,
         "angleDeg": 180
       },
       {
         "slot": 2,
-        "x": 217,
+        "x": 210,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 225,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 56.78943178511838,
+      "heightM": 7.510380562619102,
+      "band": "Plateau",
+      "survivedS": 74.4333333333321,
+      "collapsed": true,
+      "combined": 72
+    },
+    "builds": 3479,
+    "solvedAt": "2026-10-26T20:21:00.042Z"
+  },
+  "2026-11-08": {
+    "itemIds": [
+      "ketchup-bottle",
+      "hardcover-book",
+      "pizza-box",
+      "microwave-oven",
+      "giraffe",
+      "piano",
+      "watermelon",
+      "soda-can",
+      "soccer-ball",
+      "fire-hydrant"
+    ],
+    "disaster": "cat",
+    "seed": 2712926652,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 214,
+        "angleDeg": 90
+      },
+      {
+        "slot": 5,
+        "x": 279,
         "angleDeg": 90
       }
     ],
     "outcome": {
-      "heightPercent": 55.181534761541954,
-      "heightM": 7.297736798225496,
+      "heightPercent": 45.62613602615549,
+      "heightM": 3.7803278984457465,
+      "band": "Plateau",
+      "survivedS": 63.483333333329824,
+      "collapsed": true,
+      "combined": 57
+    },
+    "builds": 2968,
+    "solvedAt": "2026-10-26T20:19:26.595Z"
+  },
+  "2026-11-09": {
+    "itemIds": [
+      "soccer-ball",
+      "bicycle",
+      "square",
+      "hardcover-book",
+      "fire-hydrant",
+      "ketchup-bottle",
+      "traffic-cone",
+      "soda-can",
+      "brick",
+      "elephant"
+    ],
+    "disaster": "earthquake",
+    "seed": 2729704271,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 214,
+        "angleDeg": 90
+      },
+      {
+        "slot": 1,
+        "x": 212,
+        "angleDeg": 270
+      },
+      {
+        "slot": 4,
+        "x": 221,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 230,
+        "angleDeg": 180
+      },
+      {
+        "slot": 7,
+        "x": 216,
+        "angleDeg": 90
+      },
+      {
+        "slot": 5,
+        "x": 203,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 240,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 241,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 217,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 65.84303223423268,
+      "heightM": 6.9614020753004295,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 78
+    },
+    "builds": 2884,
+    "solvedAt": "2026-10-26T20:21:06.096Z"
+  },
+  "2026-11-10": {
+    "itemIds": [
+      "microwave-oven",
+      "car-tire",
+      "watermelon",
+      "brick",
+      "soccer-ball",
+      "ketchup-bottle",
+      "triangle",
+      "square",
+      "hardcover-book",
+      "elephant"
+    ],
+    "disaster": "earthquake",
+    "seed": 2947960413,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 237,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 223,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 57.025608684136785,
+      "heightM": 5.715881822046732,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 72
+    },
+    "builds": 2177,
+    "solvedAt": "2026-10-26T20:19:37.858Z"
+  },
+  "2026-11-11": {
+    "itemIds": [
+      "traffic-cone",
+      "office-chair",
+      "fire-hydrant",
+      "elephant",
+      "tennis-ball",
+      "ketchup-bottle",
+      "soccer-ball",
+      "pizza-box",
+      "soda-can",
+      "car-tire"
+    ],
+    "disaster": "cat",
+    "seed": 2931182794,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 3,
+        "x": 176,
+        "angleDeg": 270
+      },
+      {
+        "slot": 1,
+        "x": 206,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 235,
+        "angleDeg": 270
+      },
+      {
+        "slot": 4,
+        "x": 236,
+        "angleDeg": 0
+      },
+      {
+        "slot": 5,
+        "x": 231,
+        "angleDeg": 180
+      },
+      {
+        "slot": 6,
+        "x": 216,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 222,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 63.29081798256756,
+      "heightM": 5.005063404312013,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 76
+    },
+    "builds": 3304,
+    "solvedAt": "2026-10-26T20:21:30.041Z"
+  },
+  "2026-11-12": {
+    "itemIds": [
+      "microwave-oven",
+      "tennis-ball",
+      "watermelon",
+      "bucket",
+      "soda-can",
+      "car-tire",
+      "ketchup-bottle",
+      "piano",
+      "pizza-box",
+      "soccer-ball"
+    ],
+    "disaster": "tornado",
+    "seed": 2914405175,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 7,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 212,
+        "angleDeg": 270
+      },
+      {
+        "slot": 3,
+        "x": 217,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 52.91433282153793,
+      "heightM": 1.9644501531782257,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 69
+    },
+    "builds": 2233,
+    "solvedAt": "2026-10-26T20:19:41.986Z"
+  },
+  "2026-11-13": {
+    "itemIds": [
+      "car-tire",
+      "giraffe",
+      "square",
+      "fire-hydrant",
+      "brick",
+      "microwave-oven",
+      "traffic-cone",
+      "bucket",
+      "tennis-ball",
+      "elephant"
+    ],
+    "disaster": "wind",
+    "seed": 2897627556,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 1,
+        "x": 242,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 203,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 197,
+        "angleDeg": 180
+      },
+      {
+        "slot": 4,
+        "x": 211,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 199,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 202,
+        "angleDeg": 90
+      },
+      {
+        "slot": 7,
+        "x": 226,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 190,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 61.32022975019662,
+      "heightM": 8.740511973486395,
+      "band": "Alps",
+      "survivedS": 9.416666666666682,
+      "collapsed": true,
+      "combined": 44
+    },
+    "builds": 3122,
+    "solvedAt": "2026-10-26T20:20:02.547Z"
+  },
+  "2026-11-14": {
+    "itemIds": [
+      "hardcover-book",
+      "ketchup-bottle",
+      "square",
+      "giraffe",
+      "brick",
+      "pentagon",
+      "elephant",
+      "bicycle",
+      "traffic-cone",
+      "soccer-ball"
+    ],
+    "disaster": "wind",
+    "seed": 2880849937,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 6,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 3,
+        "x": 226,
+        "angleDeg": 0
+      },
+      {
+        "slot": 5,
+        "x": 214,
+        "angleDeg": 180
+      },
+      {
+        "slot": 4,
+        "x": 190,
+        "angleDeg": 90
+      },
+      {
+        "slot": 1,
+        "x": 169,
+        "angleDeg": 0
+      },
+      {
+        "slot": 0,
+        "x": 186,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 178,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 168,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 206,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 64.04081258323367,
+      "heightM": 10.442253552221151,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 77
+    },
+    "builds": 2870,
+    "solvedAt": "2026-10-26T20:20:48.185Z"
+  },
+  "2026-11-15": {
+    "itemIds": [
+      "pizza-box",
+      "refrigerator",
+      "square",
+      "tennis-ball",
+      "bucket",
+      "soccer-ball",
+      "brick",
+      "giraffe",
+      "hardcover-book",
+      "pentagon"
+    ],
+    "disaster": "cat",
+    "seed": 2864072318,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 7,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 1,
+        "x": 200,
+        "angleDeg": 270
+      },
+      {
+        "slot": 9,
+        "x": 199,
+        "angleDeg": 270
+      },
+      {
+        "slot": 2,
+        "x": 186,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.071170948220235,
+      "heightM": 6.65351122154059,
+      "band": "Plateau",
+      "survivedS": 50.9999999999983,
+      "collapsed": true,
+      "combined": 59
+    },
+    "builds": 2275,
+    "solvedAt": "2026-10-26T20:20:08.520Z"
+  },
+  "2026-11-16": {
+    "itemIds": [
+      "giraffe",
+      "microwave-oven",
+      "brick",
+      "office-chair",
+      "tennis-ball",
+      "square",
+      "couch",
+      "pentagon",
+      "ketchup-bottle",
+      "traffic-cone"
+    ],
+    "disaster": "wind",
+    "seed": 2847294699,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 186,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 214,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 214,
+        "angleDeg": 270
+      },
+      {
+        "slot": 3,
+        "x": 205,
+        "angleDeg": 270
+      },
+      {
+        "slot": 5,
+        "x": 223,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 41.45181003464334,
+      "heightM": 5.869841620175078,
+      "band": "Plateau",
+      "survivedS": 46.46666666666563,
+      "collapsed": true,
+      "combined": 45
+    },
+    "builds": 2366,
+    "solvedAt": "2026-10-26T20:20:19.358Z"
+  },
+  "2026-11-17": {
+    "itemIds": [
+      "watermelon",
+      "piano",
+      "pentagon",
+      "office-chair",
+      "ketchup-bottle",
+      "pizza-box",
+      "giraffe",
+      "refrigerator",
+      "square",
+      "soccer-ball"
+    ],
+    "disaster": "wind",
+    "seed": 2830517080,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 6,
+        "x": 186,
+        "angleDeg": 180
+      },
+      {
+        "slot": 7,
+        "x": 147,
+        "angleDeg": 270
+      },
+      {
+        "slot": 2,
+        "x": 152,
+        "angleDeg": 180
+      },
+      {
+        "slot": 1,
+        "x": 152,
+        "angleDeg": 270
+      },
+      {
+        "slot": 8,
+        "x": 160,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 46.7132764249208,
+      "heightM": 6.7391898680765205,
+      "band": "Plateau",
+      "survivedS": 57.61666666666401,
+      "collapsed": true,
+      "combined": 55
+    },
+    "builds": 2296,
+    "solvedAt": "2026-10-26T20:20:37.845Z"
+  },
+  "2026-11-18": {
+    "itemIds": [
+      "hardcover-book",
+      "elephant",
+      "couch",
+      "watermelon",
+      "office-chair",
+      "refrigerator",
+      "square",
+      "triangle",
+      "giraffe",
+      "pentagon"
+    ],
+    "disaster": "fat-guy",
+    "seed": 2813739461,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 8,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 5,
+        "x": 171,
+        "angleDeg": 270
+      },
+      {
+        "slot": 1,
+        "x": 194,
+        "angleDeg": 270
+      },
+      {
+        "slot": 0,
+        "x": 227,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 165,
+        "angleDeg": 270
+      },
+      {
+        "slot": 9,
+        "x": 180,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 166,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 166,
+        "angleDeg": 90
+      },
+      {
+        "slot": 3,
+        "x": 171,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 157,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 56.36334800985995,
+      "heightM": 11.515128321272872,
+      "band": "Plateau",
+      "survivedS": 60.99999999999685,
+      "collapsed": true,
+      "combined": 65
+    },
+    "builds": 3136,
+    "solvedAt": "2026-10-26T20:21:30.634Z"
+  },
+  "2026-11-19": {
+    "itemIds": [
+      "refrigerator",
+      "soccer-ball",
+      "giraffe",
+      "tennis-ball",
+      "fire-hydrant",
+      "couch",
+      "bucket",
+      "watermelon",
+      "office-chair",
+      "traffic-cone"
+    ],
+    "disaster": "cat",
+    "seed": 2796961842,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 2,
+        "x": 206,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 252,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 227,
+        "angleDeg": 270
+      }
+    ],
+    "outcome": {
+      "heightPercent": 45.1538853004654,
+      "heightM": 5.497006770366671,
+      "band": "Plateau",
+      "survivedS": 51.13333333333162,
+      "collapsed": true,
+      "combined": 51
+    },
+    "builds": 2779,
+    "solvedAt": "2026-10-26T20:20:53.703Z"
+  },
+  "2026-11-20": {
+    "itemIds": [
+      "square",
+      "triangle",
+      "bucket",
+      "ketchup-bottle",
+      "giraffe",
+      "office-chair",
+      "couch",
+      "traffic-cone",
+      "soccer-ball",
+      "brick"
+    ],
+    "disaster": "earthquake",
+    "seed": 364457350,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 1,
+        "x": 205,
+        "angleDeg": 270
+      },
+      {
+        "slot": 5,
+        "x": 214,
+        "angleDeg": 180
+      },
+      {
+        "slot": 3,
+        "x": 230,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 190,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 176,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 152,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 218,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 45.14407992773919,
+      "heightM": 6.150138336239531,
+      "band": "Plateau",
+      "survivedS": 67.96666666666356,
+      "collapsed": true,
+      "combined": 58
+    },
+    "builds": 2751,
+    "solvedAt": "2026-10-26T20:21:00.607Z"
+  },
+  "2026-11-21": {
+    "itemIds": [
+      "triangle",
+      "giraffe",
+      "couch",
+      "ketchup-bottle",
+      "soccer-ball",
+      "bucket",
+      "pizza-box",
+      "pentagon",
+      "piano",
+      "traffic-cone"
+    ],
+    "disaster": "tornado",
+    "seed": 381234969,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 1,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 0,
+        "x": 204,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 213,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 45.34931238107286,
+      "heightM": 6.092715391365098,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 61
+    },
+    "builds": 2527,
+    "solvedAt": "2026-10-26T20:21:19.185Z"
+  },
+  "2026-11-22": {
+    "itemIds": [
+      "giraffe",
+      "piano",
+      "tennis-ball",
+      "square",
+      "traffic-cone",
+      "refrigerator",
+      "elephant",
+      "pentagon",
+      "soda-can",
+      "ketchup-bottle"
+    ],
+    "disaster": "fat-guy",
+    "seed": 330902112,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 6,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 221,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 182,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 176,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 222,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 215,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 210,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 53.75966216252217,
+      "heightM": 9.515348826040833,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 70
+    },
+    "builds": 3115,
+    "solvedAt": "2026-10-26T20:22:08.201Z"
+  },
+  "2026-11-23": {
+    "itemIds": [
+      "square",
+      "triangle",
+      "microwave-oven",
+      "brick",
+      "ketchup-bottle",
+      "piano",
+      "tennis-ball",
+      "fire-hydrant",
+      "hardcover-book",
+      "bicycle"
+    ],
+    "disaster": "wind",
+    "seed": 347679731,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 248,
+        "angleDeg": 270
+      },
+      {
+        "slot": 1,
+        "x": 251,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 52.854845293614574,
+      "heightM": 4.6493895225657935,
+      "band": "Plateau",
+      "survivedS": 17.566666666666514,
+      "collapsed": true,
+      "combined": 43
+    },
+    "builds": 2597,
+    "solvedAt": "2026-10-26T20:21:09.649Z"
+  },
+  "2026-11-24": {
+    "itemIds": [
+      "couch",
+      "piano",
+      "brick",
+      "pizza-box",
+      "tennis-ball",
+      "square",
+      "watermelon",
+      "office-chair",
+      "triangle",
+      "soda-can"
+    ],
+    "disaster": "wind",
+    "seed": 431567826,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 176,
+        "angleDeg": 270
+      },
+      {
+        "slot": 5,
+        "x": 158,
+        "angleDeg": 0
+      },
+      {
+        "slot": 1,
+        "x": 182,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 156,
+        "angleDeg": 180
+      },
+      {
+        "slot": 7,
+        "x": 162,
+        "angleDeg": 90
+      },
+      {
+        "slot": 3,
+        "x": 178,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 61.53011653402813,
+      "heightM": 5.870244107566987,
+      "band": "Alps",
+      "survivedS": 13.833333333333188,
+      "collapsed": true,
+      "combined": 46
+    },
+    "builds": 2555,
+    "solvedAt": "2026-10-26T20:21:18.201Z"
+  },
+  "2026-11-25": {
+    "itemIds": [
+      "fire-hydrant",
+      "pizza-box",
+      "triangle",
+      "pentagon",
+      "bicycle",
+      "soccer-ball",
+      "tennis-ball",
+      "bucket",
+      "ketchup-bottle",
+      "car-tire"
+    ],
+    "disaster": "earthquake",
+    "seed": 448345445,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 3,
+        "x": 227,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 45.30106257940912,
+      "heightM": 3.358556177909912,
+      "band": "Plateau",
+      "survivedS": 60.54999999999691,
+      "collapsed": true,
+      "combined": 55
+    },
+    "builds": 2940,
+    "solvedAt": "2026-10-26T20:21:36.629Z"
+  },
+  "2026-11-26": {
+    "itemIds": [
+      "car-tire",
+      "traffic-cone",
+      "soda-can",
+      "brick",
+      "watermelon",
+      "square",
+      "tennis-ball",
+      "soccer-ball",
+      "bucket",
+      "piano"
+    ],
+    "disaster": "earthquake",
+    "seed": 398012588,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 5,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 218,
+        "angleDeg": 180
+      },
+      {
+        "slot": 1,
+        "x": 233,
+        "angleDeg": 180
+      },
+      {
+        "slot": 3,
+        "x": 209,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 56.90334749703213,
+      "heightM": 3.505816577175658,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 72
+    },
+    "builds": 2366,
+    "solvedAt": "2026-10-26T20:22:41.232Z"
+  },
+  "2026-11-27": {
+    "itemIds": [
+      "soda-can",
+      "fire-hydrant",
+      "bucket",
+      "elephant",
+      "refrigerator",
+      "soccer-ball",
+      "tennis-ball",
+      "pentagon",
+      "watermelon",
+      "brick"
+    ],
+    "disaster": "wind",
+    "seed": 414790207,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 3,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 7,
+        "x": 222,
+        "angleDeg": 270
+      },
+      {
+        "slot": 8,
+        "x": 192,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 216,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 264,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 70.54276227124713,
+      "heightM": 7.222210473887485,
+      "band": "Alps",
+      "survivedS": 25.116666666667065,
+      "collapsed": true,
+      "combined": 58
+    },
+    "builds": 2716,
+    "solvedAt": "2026-10-26T20:21:57.388Z"
+  },
+  "2026-11-28": {
+    "itemIds": [
+      "office-chair",
+      "ketchup-bottle",
+      "refrigerator",
+      "square",
+      "triangle",
+      "soda-can",
+      "traffic-cone",
+      "hardcover-book",
+      "bicycle",
+      "microwave-oven"
+    ],
+    "disaster": "earthquake",
+    "seed": 498678302,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 3,
+        "x": 206,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 220,
+        "angleDeg": 180
+      },
+      {
+        "slot": 8,
+        "x": 212,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 173,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 171,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 195,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 218,
+        "angleDeg": 270
+      }
+    ],
+    "outcome": {
+      "heightPercent": 58.550719938708355,
+      "heightM": 5.951654554062898,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 73
+    },
+    "builds": 3997,
+    "solvedAt": "2026-10-26T20:24:02.658Z"
+  },
+  "2026-11-29": {
+    "itemIds": [
+      "soccer-ball",
+      "giraffe",
+      "couch",
+      "bicycle",
+      "triangle",
+      "pentagon",
+      "elephant",
+      "pizza-box",
+      "bucket",
+      "microwave-oven"
+    ],
+    "disaster": "fat-guy",
+    "seed": 515455921,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 6,
+        "x": 200,
+        "angleDeg": 90
+      },
+      {
+        "slot": 1,
+        "x": 202,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 154,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 145,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 159,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 204,
+        "angleDeg": 0
+      },
+      {
+        "slot": 5,
+        "x": 190,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.125781577198595,
+      "heightM": 9.453243778645792,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 70
+    },
+    "builds": 3479,
+    "solvedAt": "2026-10-26T20:22:57.156Z"
+  },
+  "2026-11-30": {
+    "itemIds": [
+      "elephant",
+      "square",
+      "tennis-ball",
+      "office-chair",
+      "traffic-cone",
+      "ketchup-bottle",
+      "triangle",
+      "giraffe",
+      "pentagon",
+      "car-tire"
+    ],
+    "disaster": "tornado",
+    "seed": 465270159,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 221,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 240,
+        "angleDeg": 180
+      },
+      {
+        "slot": 1,
+        "x": 234,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 52.47103845084368,
+      "heightM": 9.044920250395705,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 69
+    },
+    "builds": 2926,
+    "solvedAt": "2026-10-26T20:22:55.890Z"
+  },
+  "2026-12-01": {
+    "itemIds": [
+      "soccer-ball",
+      "ketchup-bottle",
+      "soda-can",
+      "hardcover-book",
+      "bicycle",
+      "brick",
+      "office-chair",
+      "bucket",
+      "traffic-cone",
+      "refrigerator"
+    ],
+    "disaster": "cat",
+    "seed": 132171412,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 176,
+        "angleDeg": 180
+      },
+      {
+        "slot": 4,
+        "x": 179,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 203,
+        "angleDeg": 180
+      },
+      {
+        "slot": 6,
+        "x": 172,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 62.50651122598866,
+      "heightM": 4.05756065639184,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 76
+    },
+    "builds": 3101,
+    "solvedAt": "2026-10-26T20:23:34.983Z"
+  },
+  "2026-12-02": {
+    "itemIds": [
+      "bicycle",
+      "refrigerator",
+      "triangle",
+      "bucket",
+      "ketchup-bottle",
+      "pizza-box",
+      "brick",
+      "hardcover-book",
+      "office-chair",
+      "fire-hydrant"
+    ],
+    "disaster": "meteor",
+    "seed": 182504269,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 1,
+        "x": 176,
+        "angleDeg": 180
+      },
+      {
+        "slot": 0,
+        "x": 168,
+        "angleDeg": 90
+      },
+      {
+        "slot": 7,
+        "x": 155,
+        "angleDeg": 270
+      },
+      {
+        "slot": 5,
+        "x": 147,
+        "angleDeg": 180
+      },
+      {
+        "slot": 4,
+        "x": 161,
+        "angleDeg": 270
+      },
+      {
+        "slot": 2,
+        "x": 184,
+        "angleDeg": 180
+      },
+      {
+        "slot": 8,
+        "x": 184,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 65.9390444606483,
+      "heightM": 5.252983540066686,
+      "band": "Alps",
+      "survivedS": 53.21666666666465,
+      "collapsed": true,
+      "combined": 68
+    },
+    "builds": 3766,
+    "solvedAt": "2026-10-26T20:23:10.474Z"
+  },
+  "2026-12-03": {
+    "itemIds": [
+      "soccer-ball",
+      "pizza-box",
+      "microwave-oven",
+      "couch",
+      "square",
+      "car-tire",
+      "watermelon",
+      "soda-can",
+      "traffic-cone",
+      "bicycle"
+    ],
+    "disaster": "tornado",
+    "seed": 165726650,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 3,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 4,
+        "x": 231,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 207,
+        "angleDeg": 270
+      },
+      {
+        "slot": 8,
+        "x": 201,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 65.98411946494313,
+      "heightM": 5.692319832204433,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 78
+    },
+    "builds": 2996,
+    "solvedAt": "2026-10-26T20:25:22.903Z"
+  },
+  "2026-12-04": {
+    "itemIds": [
+      "bucket",
+      "square",
+      "fire-hydrant",
+      "watermelon",
+      "elephant",
+      "piano",
+      "office-chair",
+      "car-tire",
+      "triangle",
+      "refrigerator"
+    ],
+    "disaster": "wind",
+    "seed": 81838555,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 1,
+        "x": 231,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 245,
+        "angleDeg": 180
+      },
+      {
+        "slot": 0,
+        "x": 220,
+        "angleDeg": 270
+      },
+      {
+        "slot": 3,
+        "x": 216,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 202,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 228,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.85213396370302,
+      "heightM": 7.881406719899134,
+      "band": "Plateau",
+      "survivedS": 29.916666666667414,
+      "collapsed": true,
+      "combined": 50
+    },
+    "builds": 3682,
+    "solvedAt": "2026-10-26T20:23:08.920Z"
+  },
+  "2026-12-05": {
+    "itemIds": [
+      "ketchup-bottle",
+      "fire-hydrant",
+      "pizza-box",
+      "bicycle",
+      "elephant",
+      "soccer-ball",
+      "bucket",
+      "square",
+      "soda-can",
+      "couch"
+    ],
+    "disaster": "earthquake",
+    "seed": 65060936,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 9,
+        "x": 239,
+        "angleDeg": 180
+      },
+      {
+        "slot": 3,
+        "x": 239,
+        "angleDeg": 180
+      },
+      {
+        "slot": 0,
+        "x": 234,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 211,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 202,
+        "angleDeg": 270
+      },
+      {
+        "slot": 6,
+        "x": 201,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 52.219666564637876,
+      "heightM": 6.545098911056409,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 69
+    },
+    "builds": 2863,
+    "solvedAt": "2026-10-26T20:23:37.965Z"
+  },
+  "2026-12-06": {
+    "itemIds": [
+      "giraffe",
+      "bicycle",
+      "bucket",
+      "tennis-ball",
+      "pentagon",
+      "office-chair",
+      "fire-hydrant",
+      "refrigerator",
+      "soccer-ball",
+      "microwave-oven"
+    ],
+    "disaster": "cat",
+    "seed": 115393793,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 204,
+        "angleDeg": 270
+      },
+      {
+        "slot": 1,
+        "x": 178,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 41.80652488944582,
+      "heightM": 5.5234508186348465,
+      "band": "Plateau",
+      "survivedS": 47.14999999999886,
+      "collapsed": true,
+      "combined": 46
+    },
+    "builds": 2506,
+    "solvedAt": "2026-10-26T20:23:31.094Z"
+  },
+  "2026-12-07": {
+    "itemIds": [
+      "giraffe",
+      "square",
+      "office-chair",
+      "pizza-box",
+      "car-tire",
+      "traffic-cone",
+      "hardcover-book",
+      "triangle",
+      "couch",
+      "refrigerator"
+    ],
+    "disaster": "earthquake",
+    "seed": 98616174,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 199,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 213,
+        "angleDeg": 180
+      },
+      {
+        "slot": 1,
+        "x": 209,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 39.77618186621966,
+      "heightM": 6.01440540260446,
+      "band": "Mound",
+      "survivedS": 57.949999999997296,
+      "collapsed": true,
+      "combined": 47
+    },
+    "builds": 3367,
+    "solvedAt": "2026-10-26T20:24:04.688Z"
+  },
+  "2026-12-08": {
+    "itemIds": [
+      "pizza-box",
+      "microwave-oven",
+      "soda-can",
+      "ketchup-bottle",
+      "watermelon",
+      "soccer-ball",
+      "car-tire",
+      "traffic-cone",
+      "office-chair",
+      "couch"
+    ],
+    "disaster": "meteor",
+    "seed": 14728079,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 239,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 232,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 245,
+        "angleDeg": 180
+      },
+      {
+        "slot": 4,
+        "x": 221,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 236,
+        "angleDeg": 90
+      },
+      {
+        "slot": 1,
+        "x": 237,
+        "angleDeg": 270
+      },
+      {
+        "slot": 0,
+        "x": 237,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 255,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.13273517473668,
+      "heightM": 3.1638780864237184,
+      "band": "Plateau",
+      "survivedS": 59.633333333330384,
+      "collapsed": true,
+      "combined": 63
+    },
+    "builds": 3157,
+    "solvedAt": "2026-10-26T20:24:55.829Z"
+  },
+  "2026-12-09": {
+    "itemIds": [
+      "square",
+      "car-tire",
+      "bucket",
+      "bicycle",
+      "triangle",
+      "watermelon",
+      "refrigerator",
+      "pentagon",
+      "brick",
+      "hardcover-book"
+    ],
+    "disaster": "meteor",
+    "seed": 4292917756,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 6,
+        "x": 224,
+        "angleDeg": 180
+      },
+      {
+        "slot": 7,
+        "x": 216,
+        "angleDeg": 0
+      },
+      {
+        "slot": 0,
+        "x": 216,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 44.324543605536206,
+      "heightM": 4.823817754959933,
+      "band": "Plateau",
+      "survivedS": 52.84999999999803,
+      "collapsed": true,
+      "combined": 51
+    },
+    "builds": 2884,
+    "solvedAt": "2026-10-26T20:24:15.330Z"
+  },
+  "2026-12-10": {
+    "itemIds": [
+      "microwave-oven",
+      "watermelon",
+      "car-tire",
+      "hardcover-book",
+      "office-chair",
+      "square",
+      "giraffe",
+      "triangle",
+      "refrigerator",
+      "fire-hydrant"
+    ],
+    "disaster": "earthquake",
+    "seed": 48136222,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 6,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 205,
+        "angleDeg": 270
+      },
+      {
+        "slot": 4,
+        "x": 206,
+        "angleDeg": 180
+      },
+      {
+        "slot": 0,
+        "x": 233,
+        "angleDeg": 270
+      },
+      {
+        "slot": 5,
+        "x": 193,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 49.75254911299061,
+      "heightM": 6.737219793681306,
+      "band": "Plateau",
+      "survivedS": 64.9833333333296,
+      "collapsed": true,
+      "combined": 63
+    },
+    "builds": 2863,
+    "solvedAt": "2026-10-26T20:24:05.826Z"
+  },
+  "2026-12-11": {
+    "itemIds": [
+      "piano",
+      "pentagon",
+      "refrigerator",
+      "car-tire",
+      "giraffe",
+      "pizza-box",
+      "bicycle",
+      "hardcover-book",
+      "office-chair",
+      "couch"
+    ],
+    "disaster": "cat",
+    "seed": 64913841,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 214,
+        "angleDeg": 90
+      },
+      {
+        "slot": 9,
+        "x": 247,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 233,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 33.66490579014057,
+      "heightM": 5.210301650427691,
+      "band": "Mound",
+      "survivedS": 72.23333333333147,
+      "collapsed": true,
+      "combined": 45
+    },
+    "builds": 4060,
+    "solvedAt": "2026-10-26T20:26:11.151Z"
+  },
+  "2026-12-12": {
+    "itemIds": [
+      "pizza-box",
+      "bucket",
+      "ketchup-bottle",
+      "fire-hydrant",
+      "pentagon",
+      "elephant",
+      "square",
+      "car-tire",
+      "triangle",
+      "soda-can"
+    ],
+    "disaster": "earthquake",
+    "seed": 14580984,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 5,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 4,
+        "x": 215,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 191,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 193,
+        "angleDeg": 270
+      },
+      {
+        "slot": 9,
+        "x": 169,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 197,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 58.536838758946395,
+      "heightM": 7.274388296020749,
+      "band": "Plateau",
+      "survivedS": 66.78333333332988,
+      "collapsed": true,
+      "combined": 69
+    },
+    "builds": 3388,
+    "solvedAt": "2026-10-26T20:26:01.766Z"
+  },
+  "2026-12-13": {
+    "itemIds": [
+      "soda-can",
+      "car-tire",
+      "microwave-oven",
+      "tennis-ball",
+      "refrigerator",
+      "ketchup-bottle",
+      "brick",
+      "bicycle",
+      "elephant",
+      "pentagon"
+    ],
+    "disaster": "tornado",
+    "seed": 31358603,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 8,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 9,
+        "x": 235,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 235,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 66.38005573199047,
+      "heightM": 7.450860664930325,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 78
+    },
+    "builds": 3087,
+    "solvedAt": "2026-10-26T20:24:48.740Z"
+  },
+  "2026-12-14": {
+    "itemIds": [
+      "traffic-cone",
+      "car-tire",
+      "office-chair",
+      "triangle",
+      "piano",
+      "bucket",
+      "hardcover-book",
+      "square",
+      "refrigerator",
+      "watermelon"
+    ],
+    "disaster": "earthquake",
+    "seed": 115246698,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 7,
+        "x": 200,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 224,
+        "angleDeg": 180
+      },
+      {
+        "slot": 8,
+        "x": 231,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 48.74605902057004,
+      "heightM": 4.935132158800649,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 66
+    },
+    "builds": 3283,
+    "solvedAt": "2026-10-26T20:25:51.563Z"
+  },
+  "2026-12-15": {
+    "itemIds": [
+      "square",
+      "giraffe",
+      "hardcover-book",
+      "ketchup-bottle",
+      "microwave-oven",
+      "brick",
+      "traffic-cone",
+      "tennis-ball",
+      "soccer-ball",
+      "watermelon"
+    ],
+    "disaster": "cat",
+    "seed": 132024317,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 1,
+        "x": 200,
+        "angleDeg": 0
+      },
+      {
+        "slot": 5,
+        "x": 151,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 172,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 172,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 166,
+        "angleDeg": 180
+      },
+      {
+        "slot": 4,
+        "x": 172,
+        "angleDeg": 270
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.95951050744436,
+      "heightM": 5.087840225640215,
       "band": "Plateau",
       "survivedS": 75,
       "collapsed": false,
       "combined": 71
     },
-    "builds": 3213,
-    "solvedAt": "2026-10-25T16:18:09.783Z"
+    "builds": 2457,
+    "solvedAt": "2026-10-26T20:25:11.764Z"
+  },
+  "2026-12-16": {
+    "itemIds": [
+      "couch",
+      "ketchup-bottle",
+      "square",
+      "piano",
+      "hardcover-book",
+      "watermelon",
+      "soccer-ball",
+      "triangle",
+      "traffic-cone",
+      "office-chair"
+    ],
+    "disaster": "tornado",
+    "seed": 81691460,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 2,
+        "x": 229,
+        "angleDeg": 0
+      },
+      {
+        "slot": 3,
+        "x": 235,
+        "angleDeg": 180
+      },
+      {
+        "slot": 7,
+        "x": 212,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 218,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 61.170809075960086,
+      "heightM": 6.192291970105811,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 75
+    },
+    "builds": 2583,
+    "solvedAt": "2026-10-26T20:26:06.754Z"
+  },
+  "2026-12-17": {
+    "itemIds": [
+      "pizza-box",
+      "office-chair",
+      "bicycle",
+      "triangle",
+      "fire-hydrant",
+      "soda-can",
+      "brick",
+      "elephant",
+      "watermelon",
+      "hardcover-book"
+    ],
+    "disaster": "wind",
+    "seed": 98469079,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 7,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 3,
+        "x": 210,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 210,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 64.0076241459999,
+      "heightM": 6.365111192413699,
+      "band": "Alps",
+      "survivedS": 10.999999999999957,
+      "collapsed": true,
+      "combined": 47
+    },
+    "builds": 3290,
+    "solvedAt": "2026-10-26T20:25:09.395Z"
+  },
+  "2026-12-18": {
+    "itemIds": [
+      "giraffe",
+      "watermelon",
+      "soccer-ball",
+      "car-tire",
+      "soda-can",
+      "elephant",
+      "triangle",
+      "hardcover-book",
+      "bucket",
+      "refrigerator"
+    ],
+    "disaster": "cat",
+    "seed": 4208882566,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 5,
+        "x": 224,
+        "angleDeg": 90
+      },
+      {
+        "slot": 0,
+        "x": 218,
+        "angleDeg": 0
+      },
+      {
+        "slot": 9,
+        "x": 189,
+        "angleDeg": 180
+      },
+      {
+        "slot": 3,
+        "x": 194,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 193,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 164,
+        "angleDeg": 270
+      }
+    ],
+    "outcome": {
+      "heightPercent": 65.85065678905141,
+      "heightM": 8.942772818871097,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 78
+    },
+    "builds": 2737,
+    "solvedAt": "2026-10-26T20:27:33.889Z"
+  },
+  "2026-12-19": {
+    "itemIds": [
+      "soccer-ball",
+      "traffic-cone",
+      "fire-hydrant",
+      "triangle",
+      "refrigerator",
+      "pizza-box",
+      "microwave-oven",
+      "office-chair",
+      "watermelon",
+      "bicycle"
+    ],
+    "disaster": "tornado",
+    "seed": 4225660185,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 206,
+        "angleDeg": 180
+      },
+      {
+        "slot": 9,
+        "x": 218,
+        "angleDeg": 270
+      },
+      {
+        "slot": 3,
+        "x": 212,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 175,
+        "angleDeg": 180
+      },
+      {
+        "slot": 1,
+        "x": 188,
+        "angleDeg": 0
+      },
+      {
+        "slot": 7,
+        "x": 202,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 57.68347233729126,
+      "heightM": 4.9623576966363885,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 72
+    },
+    "builds": 2884,
+    "solvedAt": "2026-10-26T20:26:59.694Z"
+  },
+  "2026-12-20": {
+    "itemIds": [
+      "traffic-cone",
+      "soccer-ball",
+      "soda-can",
+      "square",
+      "microwave-oven",
+      "giraffe",
+      "refrigerator",
+      "car-tire",
+      "piano",
+      "hardcover-book"
+    ],
+    "disaster": "meteor",
+    "seed": 4242290709,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 5,
+        "x": 214,
+        "angleDeg": 0
+      },
+      {
+        "slot": 0,
+        "x": 180,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 176,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 43.339101132185725,
+      "heightM": 5.330247116298531,
+      "band": "Plateau",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 59
+    },
+    "builds": 2429,
+    "solvedAt": "2026-10-26T20:25:48.230Z"
+  },
+  "2026-12-21": {
+    "itemIds": [
+      "soccer-ball",
+      "hardcover-book",
+      "pentagon",
+      "brick",
+      "soda-can",
+      "refrigerator",
+      "piano",
+      "bucket",
+      "giraffe",
+      "elephant"
+    ],
+    "disaster": "meteor",
+    "seed": 4225513090,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 214,
+        "angleDeg": 90
+      },
+      {
+        "slot": 2,
+        "x": 202,
+        "angleDeg": 270
+      },
+      {
+        "slot": 8,
+        "x": 192,
+        "angleDeg": 90
+      },
+      {
+        "slot": 3,
+        "x": 264,
+        "angleDeg": 0
+      },
+      {
+        "slot": 4,
+        "x": 246,
+        "angleDeg": 270
+      },
+      {
+        "slot": 0,
+        "x": 260,
+        "angleDeg": 0
+      },
+      {
+        "slot": 1,
+        "x": 251,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 54.291118069350475,
+      "heightM": 8.231636009638759,
+      "band": "Plateau",
+      "survivedS": 63.09999999999654,
+      "collapsed": true,
+      "combined": 65
+    },
+    "builds": 3339,
+    "solvedAt": "2026-10-26T20:26:25.175Z"
+  },
+  "2026-12-22": {
+    "itemIds": [
+      "hardcover-book",
+      "microwave-oven",
+      "pizza-box",
+      "bucket",
+      "triangle",
+      "pentagon",
+      "refrigerator",
+      "elephant",
+      "office-chair",
+      "giraffe"
+    ],
+    "disaster": "tornado",
+    "seed": 4208735471,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 7,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 9,
+        "x": 222,
+        "angleDeg": 90
+      },
+      {
+        "slot": 4,
+        "x": 242,
+        "angleDeg": 180
+      },
+      {
+        "slot": 3,
+        "x": 236,
+        "angleDeg": 180
+      },
+      {
+        "slot": 5,
+        "x": 222,
+        "angleDeg": 90
+      },
+      {
+        "slot": 6,
+        "x": 238,
+        "angleDeg": 90
+      }
+    ],
+    "outcome": {
+      "heightPercent": 64.00433032156552,
+      "heightM": 10.582089440361589,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 77
+    },
+    "builds": 3808,
+    "solvedAt": "2026-10-26T20:28:01.437Z"
+  },
+  "2026-12-23": {
+    "itemIds": [
+      "hardcover-book",
+      "traffic-cone",
+      "pentagon",
+      "bucket",
+      "refrigerator",
+      "tennis-ball",
+      "watermelon",
+      "pizza-box",
+      "couch",
+      "bicycle"
+    ],
+    "disaster": "fat-guy",
+    "seed": 4191957852,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 4,
+        "x": 194,
+        "angleDeg": 180
+      },
+      {
+        "slot": 2,
+        "x": 198,
+        "angleDeg": 0
+      },
+      {
+        "slot": 8,
+        "x": 212,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 52.19502136944758,
+      "heightM": 4.940496444449039,
+      "band": "Plateau",
+      "survivedS": 51.18333333333161,
+      "collapsed": true,
+      "combined": 58
+    },
+    "builds": 2779,
+    "solvedAt": "2026-10-26T20:26:34.005Z"
+  },
+  "2026-12-24": {
+    "itemIds": [
+      "elephant",
+      "ketchup-bottle",
+      "soda-can",
+      "traffic-cone",
+      "pentagon",
+      "refrigerator",
+      "watermelon",
+      "couch",
+      "brick",
+      "bicycle"
+    ],
+    "disaster": "cat",
+    "seed": 4175180233,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 0,
+        "x": 224,
+        "angleDeg": 270
+      },
+      {
+        "slot": 7,
+        "x": 232,
+        "angleDeg": 90
+      },
+      {
+        "slot": 5,
+        "x": 237,
+        "angleDeg": 180
+      },
+      {
+        "slot": 3,
+        "x": 242,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 228,
+        "angleDeg": 0
+      },
+      {
+        "slot": 2,
+        "x": 250,
+        "angleDeg": 90
+      },
+      {
+        "slot": 8,
+        "x": 263,
+        "angleDeg": 90
+      },
+      {
+        "slot": 9,
+        "x": 245,
+        "angleDeg": 0
+      }
+    ],
+    "outcome": {
+      "heightPercent": 69.70873424424977,
+      "heightM": 9.347734715117063,
+      "band": "Alps",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 80
+    },
+    "builds": 3157,
+    "solvedAt": "2026-10-26T20:27:31.092Z"
+  },
+  "2026-12-25": {
+    "itemIds": [
+      "pizza-box",
+      "traffic-cone",
+      "square",
+      "brick",
+      "office-chair",
+      "bicycle",
+      "piano",
+      "fire-hydrant",
+      "triangle",
+      "giraffe"
+    ],
+    "disaster": "earthquake",
+    "seed": 4158402614,
+    "waitSteps": 90,
+    "moves": [
+      {
+        "slot": 9,
+        "x": 224,
+        "angleDeg": 0
+      },
+      {
+        "slot": 6,
+        "x": 207,
+        "angleDeg": 180
+      },
+      {
+        "slot": 8,
+        "x": 213,
+        "angleDeg": 180
+      }
+    ],
+    "outcome": {
+      "heightPercent": 39.52224905462326,
+      "heightM": 5.690119008241064,
+      "band": "Mound",
+      "survivedS": 75,
+      "collapsed": false,
+      "combined": 53
+    },
+    "builds": 3311,
+    "solvedAt": "2026-10-26T20:27:46.046Z"
   }
 }

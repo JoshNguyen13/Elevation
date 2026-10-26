@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
 import { BoardView } from "@/lib/game/boardView";
-import { buildPar, runPar, stepUntil, storedPar, type ParEntry, type ParOutcome } from "@/lib/game/parSolver";
+import { SIM_SPEEDS, type BuildSnapshot } from "@/lib/game/buildSession";
+import { ParPlayback, runPar, storedPar, type ParEntry, type ParOutcome } from "@/lib/game/parSolver";
 import BoardCanvas from "./BoardCanvas";
 import styles from "./ParCard.module.css";
 
@@ -77,23 +78,23 @@ export default function ParCard({ puzzle, yourScore }: ParCardProps) {
   );
 }
 
-// The par tower, built instantly (exact fixed steps, as the solver did), then the disaster
-// plays live. Esc closes it.
+// What the replay is doing now, under the board.
+function replayStatus(snapshot: BuildSnapshot): string {
+  const { phase, pieces, result, outcome, disasterName, testSeconds } = snapshot;
+  if (phase === "build") return `Placing ${pieces.filter((p) => p.status !== "tray").length} / ${pieces.length}`;
+  if (phase === "settling") return "Settling…";
+  if (phase === "measured" && result) return `Height: ${result.heightM.toFixed(1)} m · ${result.band}`;
+  if (phase === "done" && outcome) return `${disasterName}: ${survival(outcome)}`;
+  return `${disasterName} · ${testSeconds}s`;
+}
+
+// The par tower built piece by piece, then the disaster, all live (ParPlayback places each
+// piece at the solver's exact step, so it ends on the same score). Esc closes it.
 function ParReplay({ puzzle, entry, onClose }: { puzzle: DailyPuzzle; entry: ParEntry; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [view] = useState(() => new BoardView());
-  const [session] = useState(() => {
-    const s = buildPar(puzzle, entry.moves, entry.waitSteps)!;
-    stepUntil(s, "testing");
-    // The build's clicks and thuds already "happened"; start the sound with the disaster.
-    s.drainJuice();
-    return s;
-  });
-  const { phase, outcome, testSeconds, disasterName } = useSyncExternalStore(
-    session.subscribe,
-    session.getSnapshot,
-    session.getSnapshot,
-  );
+  const [session] = useState(() => new ParPlayback(puzzle, entry));
+  const snapshot = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -113,9 +114,24 @@ function ParReplay({ puzzle, entry, onClose }: { puzzle: DailyPuzzle; entry: Par
           onPointerUp={noop}
         />
       </div>
-      <p className={styles.note}>
-        {phase === "done" && outcome ? `${disasterName}: ${survival(outcome)}` : `${disasterName} · ${testSeconds}s`}
-      </p>
+      <div className={styles.status}>
+        <p className={styles.note}>{replayStatus(snapshot)}</p>
+        {snapshot.phase === "testing" && (
+          <div className={styles.actions} role="group" aria-label="Disaster speed">
+            {SIM_SPEEDS.map((speed) => (
+              <button
+                key={speed}
+                type="button"
+                className={styles.speed}
+                aria-pressed={snapshot.speed === speed}
+                onClick={() => session.setSpeed(speed)}
+              >
+                {speed}x
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

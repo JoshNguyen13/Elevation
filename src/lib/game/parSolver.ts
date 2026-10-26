@@ -8,7 +8,7 @@
 // The results screen replays the stored moves, so what it shows always matches the current game.
 import parData from "@/data/par.generated.json";
 import type { DailyPuzzle } from "@/lib/daily/puzzle";
-import { PHYSICS_STEP_MS } from "@/lib/physics/constants";
+import { MAX_FRAME_MS, PHYSICS_STEP_MS } from "@/lib/physics/constants";
 import type { DisasterType } from "@/lib/supabase/types";
 import { PLATFORM_RECT } from "./board";
 import { BuildSession } from "./buildSession";
@@ -100,7 +100,7 @@ function topCenterX(s: BuildSession): number {
 }
 
 // Makes one move like a player would. False if the game refused the drop.
-function play(s: BuildSession, move: ParMove): boolean {
+export function playMove(s: BuildSession, move: ParMove): boolean {
   const piece = s.getSnapshot().pieces[move.slot];
   const outline = rotated(s.outline(piece.materialId), move.angleDeg);
   const xs = outline.map((v) => v.x);
@@ -117,7 +117,7 @@ function play(s: BuildSession, move: ParMove): boolean {
 export function buildPar(puzzle: ParPuzzle, moves: ParMove[], waitSteps = WAIT_STEPS): BuildSession | null {
   const s = session(puzzle);
   for (const move of moves) {
-    if (!play(s, move)) return null;
+    if (!playMove(s, move)) return null;
     for (let k = 0; k < waitSteps; k++) s.step(PHYSICS_STEP_MS);
   }
   return s;
@@ -251,6 +251,42 @@ export async function solvePar(puzzle: ParPuzzle, onProgress?: (p: ParProgress) 
     builds,
     solvedAt: new Date().toISOString(),
   };
+}
+
+// The par played live, for watching: every piece placed at the same fixed step as in
+// buildPar() and stepUntil(), so the tower and its score match the solver whatever the frame
+// rate. The build runs `buildSpeed`× faster than real time; the test is the session's own
+// (its clock counts fixed steps, so any frame timing gives the same outcome).
+export class ParPlayback extends BuildSession {
+  private readonly entry: ParEntry;
+  private readonly buildSpeed: number;
+  private backlogMs = 0;
+  private steps = 0;
+  private played = 0;
+
+  constructor(puzzle: ParPuzzle, entry: ParEntry, buildSpeed = 3) {
+    super({ materialIds: puzzle.itemIds, disaster: puzzle.disaster, seed: puzzle.seedNumber });
+    this.entry = entry;
+    this.buildSpeed = buildSpeed;
+  }
+
+  override step(elapsedMs: number) {
+    const before = this.getSnapshot().phase;
+    if (before === "testing" || before === "done") return super.step(elapsedMs);
+    this.backlogMs += Math.min(elapsedMs, MAX_FRAME_MS) * this.buildSpeed;
+    const { moves, waitSteps } = this.entry;
+    while (this.backlogMs >= PHYSICS_STEP_MS) {
+      const phase = this.getSnapshot().phase;
+      if (phase === "testing" || phase === "done") break;
+      if (phase === "build" && this.steps === this.played * waitSteps) {
+        if (this.played < moves.length) playMove(this, moves[this.played++]);
+        else this.endBuild();
+      }
+      super.step(PHYSICS_STEP_MS);
+      this.backlogMs -= PHYSICS_STEP_MS;
+      this.steps++;
+    }
+  }
 }
 
 const PAR = parData as Record<string, ParEntry>;

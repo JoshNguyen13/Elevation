@@ -9,6 +9,26 @@ Newest first. One entry per session or PR: date · who · branch · what changed
 - Open:
 -->
 
+## 2026-10-26 · Josh (integrator) · main (par for every day, watchable build)
+- Changed:
+  - **`npm run par:solve -- [first-date] [days]`** (`scripts/par/solve.mjs`) runs `solvePar` for a date range, one worker process per core, and writes into `src/data/par.generated.json` (each day saved as it finishes). Defaults: today, 60 days.
+    - `scripts/par/hooks.mjs` lets Node 24 import the game's TypeScript directly (the `@/` alias, extensionless imports, JSON). No dependencies.
+    - `parSolver.ts` must stay erasable TypeScript (no parameter properties or enums) so Node can strip it.
+  - **Stored par: 2 → 62 days** (2026-10-25 … 2026-12-25), all solved on today's physics (welds, friction, resting, the new lineup).
+    - The 2 old entries were stale: 2026-10-25 replayed to 66 (stored 72), 2026-11-07 to 48 (stored 71). Re-solved: 67 and 72.
+    - 10:23 for 62 days on 9 workers, about 2,200–4,100 builds each.
+    - Scores 43–80 (median ~65). Wind days are lowest (43–58, none survive); tornado days are 61–78, all survive.
+  - **"Watch it" builds the tower live.** `ParPlayback` (a `BuildSession` subclass in `parSolver.ts`) places each piece at the solver's exact fixed step, at 3× speed, then runs the disaster.
+    - The dialog shows "Placing n / 10" → "Settling…" → the height → the disaster clock, with 1x / 2x / 4x buttons, then the result.
+    - `playMove` is now exported.
+- Checked:
+  - `ParPlayback` with 60 fps, jittery (5–65 ms) and 45 ms frames matched `runPar` exactly on both stored days (score, survival, height).
+  - Headless Chrome, 2026-10-26 (wind) and 2026-11-02 (fat guy): played a round, opened Results → Watch it, saw the piece-by-piece build and the disaster, and the final line matched the card (46, 56). No page errors.
+- Open:
+  - **Re-run `par:solve` after any physics or disaster change.** A stored par still replays and shows its current score, but may no longer be the best.
+  - **Days already stored in Supabase** whose pieces or disaster differ from `generatePuzzle()` (e.g. stored before a pool or lineup change) don't match `storedPar()`, so their card stays hidden.
+  - **Coverage ends 2026-12-25.**
+
 ## 2026-10-25 · Matthew/Joshua (+ Claude Code) · physics/score-weights (par: best tower found)
 - Changed:
   - **`src/lib/game/parSolver.ts`, a par solver.**

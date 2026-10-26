@@ -13,7 +13,8 @@
     "materials:mock": "node scripts/materials/generate.mjs --mock",
     "materials:check": "node scripts/materials/check.mjs",
     "materials:test": "node --test scripts/materials/*.test.mjs",
-    "par:merge": "node scripts/par/merge.mjs"
+    "par:merge": "node scripts/par/merge.mjs",
+    "par:solve": "node --no-warnings --import ./scripts/par/hooks.mjs scripts/par/solve.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
